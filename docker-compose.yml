@@ -1,0 +1,31 @@
+services:
+  observe-svc:
+    build: 
+        context: .
+        dockerfile: observe-svc/Dockerfile
+    ports:
+      - "5001:5000"
+    volumes:
+      - .:/data/
+    links:
+      - storage
+  animal-svc:
+    build:
+        context: .
+        dockerfile: animal-svc/Dockerfile
+    ports:
+      - "5000:5000"
+    links:
+      - storage
+      - animal-server
+  animal-server:
+    image: tensorflow/serving:latest
+    environment:
+      - MODEL_NAME=animaldet
+    volumes:
+      - ./animal-svc/servable/saved_model:/models/animaldet 
+  storage:
+    image: scireum/s3-ninja:7.0
+    volumes:
+      - ./storage:/home/sirius/data
+
