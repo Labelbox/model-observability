@@ -10,9 +10,7 @@ from uuid import uuid4
 import json
 import boto3
 
-
 predictor = Predictor()
-
 
 app = flask.Flask(__name__)
 
@@ -34,17 +32,16 @@ def healh_check():
     return "Running"
 
 
-
 @app.route("/predict", methods=["POST"])
 def predict_sync():
     if flask.request.method == "POST":
         if flask.request.files.get("image"):
             image_bytes = flask.request.files['image'].read()
 
-    image = Image.open(BytesIO(image_bytes)).resize((640,640))
+    image = Image.open(BytesIO(image_bytes)).resize((640, 640))
     boxes, scores = predictor.predict(image)
 
-    response = {'boxes' : boxes.tolist(), 'scores' : scores.tolist()}
+    response = {'boxes': boxes.tolist(), 'scores': scores.tolist()}
     store_results(image, response.copy())
     return response
 
@@ -55,17 +52,21 @@ def store_results(image, response):
     day = timestamp.strftime("%d-%m-%Y")
 
     image_bytes = BytesIO()
-    image.save(image_bytes, format = "JPEG")
-    s3_client.put_object(Body=image_bytes.getvalue(), Bucket='images', Key=os.path.join(day, f"{uuid}.jpg"))
-    
-    response.update({'timestamp' : str(timestamp)}) 
-    s3_client.put_object(
-       Body=str(json.dumps(response)),
-       Bucket='results',
-       Key=os.path.join(day, f"{uuid}.json")
-    )
+    image.save(image_bytes, format="JPEG")
+    s3_client.put_object(Body=image_bytes.getvalue(),
+                         Bucket='images',
+                         Key=os.path.join(day, f"{uuid}.jpg"))
 
+    response.update({
+        'timestamp': str(timestamp),
+        'image_h': image.size[1],
+        'image_w': image.size[0]
+    })
+
+    s3_client.put_object(Body=str(json.dumps(response)),
+                         Bucket='results',
+                         Key=os.path.join(day, f"{uuid}.json"))
 
 
 if __name__ == '__main__':
-    app.run(host = '0.0.0.0', port = '5000')
+    app.run(host='0.0.0.0', port='5000')

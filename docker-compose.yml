@@ -9,6 +9,9 @@ services:
       - .:/data/
     links:
       - storage
+    environment:
+      - NGROK_TOKEN
+      - LABELBOX_API_KEY
   animal-svc:
     build:
         context: .
