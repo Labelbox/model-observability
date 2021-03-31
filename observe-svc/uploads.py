@@ -84,15 +84,15 @@ def upload_image_to_labelbox(image_bytes, external_id):
 
 def list_inferences(date, bucket_name="results"):
     assert bucket_name in ['images', 'results'], bucket_name
-    datetime.strptime(date, '%d-%m-%Y')
     return list(
         s3_client.list_objects(Bucket=bucket_name, Prefix=date)['Contents'])
 
 
 def sample_training_data(low_confidence=False, target_examples=10):
-    date = "26-03-2021"
+    date = datetime.now().strftime('%d-%m-%Y')
     #TODO: Check if external ids have already been uploaded
     labels = list_inferences(date, 'results')
+    print("LABELS", labels, flush=True)
     samples = random.sample(labels, min(len(labels), target_examples))
     to_upload = []
     for sample in samples:
@@ -109,7 +109,8 @@ def sample_training_data(low_confidence=False, target_examples=10):
 
 
 if __name__ == '__main__':
-    #sched.add_job(lambda: sample_training_data,'interval',minutes=6)
-    schedule.every(5).minutes.do(lambda: sample_training_data)
-    while 1:
-        schedule.run_pending()
+    print("RUNN?", flush=True)
+    sample_training_data()
+    #schedule.every(1).minutes.do(lambda: sample_training_data)
+    #while 1:
+    #    schedule.run_pending()

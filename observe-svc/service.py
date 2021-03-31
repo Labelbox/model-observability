@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import hashlib
 import subprocess
@@ -14,6 +14,9 @@ from flask import request
 import os
 import boto3
 from labelbox import Client, Label
+import numpy as np
+from src.evaluators.coco_evaluator import get_coco_summary
+from src.bounding_box import BBFormat, BBType, CoordinatesType, BoundingBox
 
 client = Client()
 
@@ -56,15 +59,6 @@ def health_check():
     return 'alive!'
 
 
-def normalize_box(box, image_h, image_w):
-    box[0] = box[0] / image_h
-    box[1] = box[1] / image_w
-    box[2] = box[2] / image_h
-    box[3] = box[3] / image_w
-    return box
-
-
-
 @app.route('/review', methods=['POST'])
 def print_webhook_info():
     payload = request.data
@@ -76,77 +70,107 @@ def print_webhook_info():
         )
         return 'Error', 500, 200
     review = json.loads(payload.decode('utf8'))
-    {'top': 290, 'left': 251, 'height': 107, 'width': 65}
-
-                 t = bbox[0] * inference['image_h']
-             l = bbox[1] * inference['image_w']
-             b = bbox[2] * inference['image_h']
-             r = bbox[3] * inference['image_w']
-
-
     label = client._get_single(Label, review['label']['id'])
     data_row = label.data_row()
     boxes = [annot['bbox'] for annot in json.loads(label.label)['objects']]
-    boxes = []
+    #boxes = [normalize_box(box) for box in boxes]
     s3_client.put_object(Body=str(json.dumps({'boxes': boxes})),
                          Bucket='annotations',
                          Key=f"{data_row.external_id}.json")
     return "success"
 
 
-
 def list_annotations(date, bucket_name="annotations"):
     datetime.strptime(date, '%d-%m-%Y')
     return list(
-        s3_client.list_objects(Bucket=bucket_name, Prefix=date)['Contents'])
+        s3_client.list_objects(Bucket=bucket_name,
+                               Prefix=date).get('Contents', []))
+
 
 def daterange(start_date, end_date):
     for n in range(int((end_date - start_date).days)):
         yield start_date + timedelta(n)
 
-#https://github.com/rafaelpadilla/Object-Detection-Metrics/blob/master/samples/sample_2/sample_2.py
-#Maybe use threading for this..
-         image_res = s3_client.get_object(Bucket='images',
-                                          Key=sample.replace('.json', '.jpg'))
-         image_bytes = image_res['Body'].read()
-         json_res = s3_client.get_object(Bucket='results', Key=sample)
-         json_payload = json.loads(json_res['Body'].read().decode('utf-8'))
 
 def get_bbox(response):
+    ...
+    #https://github.com/rafaelpadilla/Object-Detection-Metrics/blob/master/samples/sample_2/sample_2.py
 
 
+def normalize_box(box):
+    return [
+        box['left'], box['top'], box['left'] + box['width'],
+        box['top'] + box['height']
+    ]
 
+
+def swap_dims(box, image_h, image_w):
+    return [
+        box[1] * image_w, box[0] * image_h, box[3] * image_w, box[2] * image_h
+    ]
 
 
 def calculate_accuracy(annotations, inferences):
-    examples = set(annotations + inferences)
+    annotations = set([annot['Key'] for annot in annotations])
+    inferences = set([infer['Key'] for infer in inferences])
     #Files should have the same name
     #Each example is an image
-    for example in examples:
-        example = example['Key']
-        annotation = s3_client.get_object(Bucket='annotations', Key = example)
-        inference = s3_client.get_object(Bucket='inferences', Key = example)
+    gt, pred = [], []
+    for example in annotations.intersection(inferences):
+        annotation = json.loads(
+            s3_client.get_object(Bucket='annotations',
+                                 Key=example)['Body'].read())
+        inference = json.loads(
+            s3_client.get_object(Bucket='results', Key=example)['Body'].read())
+        annotation_boxes = [normalize_box(box) for box in annotation['boxes']]
+        image_size = (inference['image_w'], inference['image_h'])
+        gt.extend([
+            BoundingBox(example,
+                        class_id="animal",
+                        coordinates=coords,
+                        format=BBFormat.XYX2Y2,
+                        img_size=image_size) for coords in annotation_boxes
+        ])
+        pred.extend([
+            BoundingBox(example,
+                        class_id="animal",
+                        coordinates=swap_dims(coords, image_size[1],
+                                              image_size[0]),
+                        img_size=image_size,
+                        format=BBFormat.XYX2Y2,
+                        confidence=score)
+            for coords, score in zip(inference['boxes'], inference['scores'])
+        ])
+    if not len(gt):
+        return {'samples': 0}
 
-        annotation =BoundingBox(example, coordinates = [annotation[]])
+    result = get_coco_summary(gt, pred)
+    result = {
+        k: v for k, v in result.items() if
+        k in ['AP', 'AP50', 'AP75', 'AR1', 'AR10', 'AR100'] and not np.isnan(v)
+    }
+    result.update({'samples': len(gt)})
+    return result
+
 
 @app.route('/observe')
 def observe():
-    start_date = request_args.get('start_date')
-    end_date = request_args.get('end_date', start_date)
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date', start_date)
     #request_args.get('visualize', False)
     """
     This route will be used to see how the model is performing
     - Optionally visualize some failure to see the cause
     """
     ious = {}
+    start_date = datetime.strptime(start_date, '%d-%m-%Y')
+    end_date = datetime.strptime(end_date, '%d-%m-%Y')
     for date in daterange(start_date, end_date):
         date = date.strftime('%d-%m-%Y')
         annotations = list_annotations(date)
-        inferences = list_annotations(date, bucket_name = 'inferences')
-
-
-
-
+        inferences = list_annotations(date, bucket_name='results')
+        ious[date] = calculate_accuracy(annotations, inferences)
+    return ious
 
 
 if __name__ == '__main__':
