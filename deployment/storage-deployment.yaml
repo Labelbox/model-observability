@@ -25,17 +25,22 @@ spec:
         io.kompose.service: storage
     spec:
       containers:
-        - image: scireum/s3-ninja:7.0
+        - env:
+          image: storagecontainer
           name: storage
+          imagePullPolicy: IfNotPresent
           resources: {}
           volumeMounts:
-            - mountPath: /home/sirius/data
+            - mountPath: /host/storage
               name: storage-volume
           ports:
             - containerPort: 9000
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsUser: 0 # Shortcut to allowing write permissions. Don't use in production
       restartPolicy: Always
       volumes:
       - name: storage-volume
         hostPath:
-          path: /home/serius/data
+          path: /host/storage
 status: {}

@@ -1,0 +1,492 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observe
+  annotations:
+    # The following configuration values can be overridden through the use of
+    # query parameters, e.g. `?coordination=false` will disable the use of a
+    # lease lock for coordinating between agents.
+    #
+    # We recommend hosting all objects in this manifest within a dedicated
+    # namespace named "observe". You can override this default via a query
+    # parameter. Any namespace not prefixed with `observe` will not be managed
+    # by this manifest.
+    observeinc.com/collector: "collect.observeinc.com"
+    observeinc.com/coordination: "true"
+    observeinc.com/credentialName: "credentials"
+    observeinc.com/namespace: "observe"
+    observeinc.com/startupProbe: "false"
+    observeinc.com/version: "0.0.2"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: observe-state
+  namespace: observe
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: observe-state
+rules:
+- apiGroups: [""]
+  verbs: ["list", "get", "watch"]
+  resources:
+  - configmaps
+  - endpoints
+  - events
+  - limitranges
+  - namespaces
+  - nodes
+  - nodes/proxy
+  - persistentvolumes
+  - persistentvolumeclaims
+  - pods
+  - podtemplates
+  - replicationcontrollers
+  - resourcequotas
+  - secrets
+  - services
+  - serviceaccounts
+- apiGroups: ["extensions"]
+  verbs: ["list", "watch"]
+  resources:
+  - daemonsets
+  - deployments
+  - ingresses
+  - podsecuritypolicies
+  - replicasets
+- apiGroups: ["apps"]
+  verbs: ["list", "watch"]
+  resources:
+  - controllerrevisions
+  - daemonsets
+  - deployments
+  - replicasets
+  - statefulsets
+- apiGroups: ["batch"]
+  verbs: ["list", "watch"]
+  resources:
+  - cronjobs
+  - jobs
+- apiGroups: ["networking.k8s.io"]
+  verbs: ["list", "watch"]
+  resources:
+  - networkpolicies
+- apiGroups: ["coordination.k8s.io"]
+  verbs: ["list", "watch"]
+  resources:
+  - leases
+- apiGroups: ["events.k8s.io"]
+  verbs: ["list", "watch"]
+  resources:
+  - events
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: observe-state
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: observe-state
+subjects:
+- kind: ServiceAccount
+  name: observe-state
+  namespace: observe
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: observe-state
+  namespace: observe
+rules:
+- apiGroups: [""]
+  verbs: ["create"]
+  resources:
+  - configmaps
+- apiGroups: ["coordination.k8s.io"]
+  verbs: ["*"]
+  resources:
+  - leases
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: observe-state
+  namespace: observe
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: observe-state
+subjects:
+- kind: ServiceAccount
+  name: observe-state
+  namespace: observe
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: observe-proxy
+  labels:
+    name: observe-proxy
+  namespace: observe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: observe-proxy
+  template:
+    metadata:
+      labels:
+        name: observe-proxy
+    spec:
+      containers:
+      - name: proxy
+        image: observeinc/proxy:latest
+        args:
+          - -target=https://collect.observeinc.com
+          - -bearer-token=$(OBSERVE_CUSTOMER) $(OBSERVE_TOKEN)
+          - -tag=clusterUid=$(OBSERVE_CLUSTER)
+          - -listen=:8080
+          - -progress-v=1
+          - -healthz-bind-address=:8082
+        ports:
+        - containerPort: 8080
+        - containerPort: 8082
+        readinessProbe:
+          httpGet:
+           path: /healthz
+           port: 8082
+        livenessProbe:
+          httpGet:
+           path: /healthz
+           port: 8082
+        env:
+        - name: OBSERVE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: credentials
+              key: token
+        - name: OBSERVE_CUSTOMER
+          valueFrom:
+            secretKeyRef:
+              name: credentials
+              key: customer
+        - name: OBSERVE_CLUSTER
+          valueFrom:
+            configMapKeyRef:
+              name: cluster-info
+              key: id
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+              - all
+---
+apiVersion: coordination.k8s.io/v1
+kind: Lease
+metadata:
+  name: observe-kubelog
+  namespace: observe
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: observe-agent-config
+  namespace: observe
+data:
+  telegraf.conf: |+
+    [agent]
+      omit_hostname = true
+    [[outputs.health]]
+      service_address = "http://:8888"
+    [[outputs.http]]
+      url = "http://proxy.${NAMESPACE}.svc.cluster.local/v1/observations/kubernetes/telegraf"
+      data_format = "json"
+      [outputs.http.headers]
+        Content-Type = "application/json"
+        X-Observe-Decoder = "nested"
+    [[inputs.kubernetes]]
+      url = "https://kubernetes.default.svc.cluster.local/api/v1/nodes/${NODE}/proxy"
+      bearer_token = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+      tls_ca = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+  fluent-bit.conf: |-
+    [SERVICE]
+        Flush          1
+        Daemon         Off
+        Log_Level      warning
+        Parsers_File   parsers.conf
+        HTTP_Server    On
+        HTTP_Listen    0.0.0.0
+        HTTP_PORT      2020
+
+    [INPUT]
+        Name           tcp
+        Tag            k8sevents
+        Listen         127.0.0.1
+        Port           5170
+        Chunk_Size     128k
+        Max_Size       128k
+        Format         json
+
+    [INPUT]
+        Name           tail
+        Tag            k8slogs
+        Path           /var/log/containers/*.log
+        Path_Key       filename
+        DB             /var/log/flb_kube_${NAMESPACE}.db
+        Mem_Buf_Limit     5MB
+        Skip_Long_Lines   On
+        Read_From_Head    True
+        Buffer_Chunk_Size 32k
+        Buffer_Max_Size   256k
+        Rotate_Wait       5
+        Refresh_Interval  2
+        Docker_Mode       On
+        Docker_Mode_Flush 4
+
+    [INPUT]
+        Name           tail
+        Tag            k8snode
+        Path           /var/log/*.log
+        Exclude_Path   /var/log/kube-apiserver-audit-*.log
+        Path_Key       filename
+        DB             /var/log/flb_node_${NAMESPACE}.db
+        Ignore_Older      1d
+        Skip_Long_Lines   On
+        Mem_Buf_Limit     10MB
+        Buffer_Chunk_Size 1024k
+        Buffer_Max_Size   4096k
+        Rotate_Wait       5
+
+    [FILTER]
+        Name            record_modifier
+        Match           *
+        Record          nodeName ${NODE}
+
+    [FILTER]
+        Name            parser
+        Alias           parse_filename
+        Match           k8slogs
+        Key_Name        filename
+        Reserve_Data    True
+        Parser          kube-custom
+
+    [FILTER]
+        Name            record_modifier
+        Alias           filter_docker
+        Match           k8slogs
+        Whitelist_key   log
+        Whitelist_key   containerId
+        Whitelist_key   containerName
+        Whitelist_key   podName
+        Whitelist_key   nodeName
+        Whitelist_key   namespace
+
+    [OUTPUT]
+        Name            http
+        Match           k8slogs
+        Host            proxy.${NAMESPACE}.svc.cluster.local
+        Port            80
+        URI             /v1/observations/kubernetes/logs
+        Format              json_lines
+        Header              Content-Type application/x-ndjson
+        json_date_key       fluentTimestamp
+        json_date_format    iso8601
+        Compress        gzip
+
+    [OUTPUT]
+        Name            http
+        Match           k8sevents
+        Host            proxy.${NAMESPACE}.svc.cluster.local
+        Port            80
+        URI             /v1/observations/kubernetes/events
+        Format              json_lines
+        Header              Content-Type application/x-ndjson
+        json_date_key       fluentTimestamp
+        json_date_format    iso8601
+        Compress        gzip
+
+    [OUTPUT]
+        Name            http
+        Match           k8snode
+        Host            proxy.${NAMESPACE}.svc.cluster.local
+        Port            80
+        URI             /v1/observations/kubernetes/node/logs
+        Format          json_lines
+        Header          Content-Type application/x-ndjson
+        json_date_key       fluentTimestamp
+        json_date_format    iso8601
+        Compress        gzip
+
+  parsers.conf: |-
+    [PARSER]
+        Name        kube-custom
+        Format      regex
+        Regex       (?<podName>[a-z0-9](?:[-a-z0-9]*[a-z0-9])?(?:\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<containerName>.+)-(?<containerId>[a-f0-9]{64})\.log$
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: observe-agent
+  namespace: observe
+spec:
+  selector:
+    matchLabels:
+      name: observe-agent
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: observe-agent
+      annotations:
+        observeinc.com/nonce: 2020-06-04
+    spec:
+      serviceAccountName: observe-state
+      tolerations:
+      - operator: Exists
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: observeinc.com/unschedulable
+                operator: DoesNotExist
+      terminationGracePeriodSeconds: 15
+      containers:
+      - name: kubelog
+        image: observeinc/kubelog:latest
+        args:
+          - --publish-cluster-info=$(NAMESPACE)/cluster-info
+          - --id=$(NODE)
+          - --lease-lock-name=observe-kubelog
+          - --lease-lock-namespace=$(NAMESPACE)
+          - --max-event-size=128
+          - --tcp-addr=localhost:5170
+          - --healthz-bind-address=:5171
+        ports:
+        - containerPort: 5171
+        env:
+        - name: NODE
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        readinessProbe:
+          httpGet:
+           path: /healthz
+           port: 5171
+        livenessProbe:
+          httpGet:
+           path: /healthz
+           port: 5171
+        resources:
+          limits:
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+              - all
+      - name: telegraf
+        image: observeinc/telegraf:latest
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8888
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8888
+        env:
+        - name: NODE
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        volumeMounts:
+        - name: config
+          mountPath: /etc/telegraf
+      - name: fluent-bit
+        image: fluent/fluent-bit:1.6.10
+        env:
+        - name: NODE
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        command:
+          - /fluent-bit/bin/fluent-bit
+          - -c
+          - /fluent-bit/etc/fluent-bit.conf
+        readinessProbe:
+          httpGet:
+            path: /api/v1/metrics/prometheus
+            port: 2020
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 2020
+        resources:
+          limits:
+            memory: 128Mi
+          requests:
+            cpu: 100m
+            memory: 64Mi
+        volumeMounts:
+        - name: config
+          mountPath: /fluent-bit/etc
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: observe-agent-config
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: observe
+  name: proxy
+spec:
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: http
+  selector:
+    name: observe-proxy

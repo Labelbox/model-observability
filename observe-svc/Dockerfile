@@ -17,6 +17,7 @@ RUN pip install tensorflow-serving-api \
                 boto3 \
                 opencv-python \
                 git+https://github.com/rafaelpadilla/review_object_detection_metrics.git \
+                pip install json-logging \
                 pyqt5
 
 

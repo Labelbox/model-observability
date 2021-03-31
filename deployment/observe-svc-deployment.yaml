@@ -36,6 +36,8 @@ spec:
                 secretKeyRef:
                   name: keys
                   key: ngrok_key
+            - name: PYTHONUNBUFFERED
+              value: "1"
           image: model-observability_observe-svc
           name: observe-svc
           imagePullPolicy: IfNotPresent
