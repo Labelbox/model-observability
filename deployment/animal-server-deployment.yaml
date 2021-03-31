@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: animal-server
+  name: animal-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: animal-server
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+      creationTimestamp: null
+      labels:
+        io.kompose.service: animal-server
+    spec:
+      containers:
+        - env:
+            - name: MODEL_NAME
+              value: animaldet
+          image: tensorflow/serving:latest
+          name: animal-server
+          resources: {}
+          volumeMounts:
+            - mountPath: /models/animaldet
+              name: animal-server-volume
+      restartPolicy: Always
+      volumes:
+      - name: animal-server-volume
+        hostPath:
+          path: /models/animaldet
+status: {}

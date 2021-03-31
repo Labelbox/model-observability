@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: animal-svc
+    app: animal-svc
+  name: animal-svc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: animal-svc
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+      creationTimestamp: null
+      labels:
+        io.kompose.service: animal-svc
+    spec:
+      containers:
+        - image: model-observability_animal-svc
+          name: animal-svc
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          resources: {}
+      restartPolicy: Always
+status: {}

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: observe-svc
+  name: observe-svc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: observe-svc
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+      creationTimestamp: null
+      labels:
+        io.kompose.service: observe-svc
+    spec:
+      containers:
+        - env:
+            - name: LABELBOX_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: keys
+                  key: labelbox_api_key
+            - name: NGROK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: keys
+                  key: ngrok_key
+          image: model-observability_observe-svc
+          name: observe-svc
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          resources: {}
+      restartPolicy: Always
+status: {}
