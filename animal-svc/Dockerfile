@@ -5,7 +5,8 @@ RUN pip install tensorflow-serving-api \
                 PILLOW \
                 numpy \
                 flask \
-                boto3
+                boto3 \
+                json_logging
 
 
 WORKDIR /usr/src/animal-svc

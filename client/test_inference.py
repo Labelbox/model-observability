@@ -16,7 +16,7 @@ images = [
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTrvT-msveQuBjc-ByifBvR54UGi3s1kg0nSw&usqp=CAU",
     "https://hgtvhome.sndimg.com/content/dam/images/grdn/fullset/2014/11/2/0/CI_ci-xgrass-dog-runs-3.jpg.rend.hgtvcom.406.305.suffix/1452846042105.jpeg",
     "https://www.bunnings.co.nz/-/media/articles/outdoor/pets%20and%20wildlife/how%20to%20go%20pet%20friendly/header.jpg",
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQVUgGcotAtf2A_CW8hDmu5PEqOxQLdUzG1TQ&usqp=CAU", 
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQVUgGcotAtf2A_CW8hDmu5PEqOxQLdUzG1TQ&usqp=CAU",
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ7dbu6rpb52F5To5sNGRPCcSQOo57JAdd1YA&usqp=CAU",
     "https://nextluxury.com/wp-content/uploads/rustic-salvaged-wood-pallet-dog-fence-ideas.jpg",
     "https://i.ytimg.com/vi/J_WyWwRYAQ4/maxresdefault.jpg"
@@ -47,6 +47,8 @@ def chunkIt(seq, num):
     return out
 
 import datetime
+import time
+
 today = datetime.datetime.now()
 easy_dates = [today - datetime.timedelta(days = i) for i in range(2,6,1)][::-1]
 easy_chunks = chunkIt(images, len(easy_dates))

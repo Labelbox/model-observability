@@ -30,7 +30,6 @@ json_logging.init_request_instrument(app)
 
 # init the logger as usual
 logger = logging.getLogger("test-logger")
-logger.setLevel(logging.DEBUG)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 logger.setLevel(logging.INFO)
 

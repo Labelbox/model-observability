@@ -29,7 +29,7 @@ services:
       - /tmp/servable/saved_model:/models/animaldet 
   storage:
     build:
-        context: storage/config
+        context: storage/
         dockerfile: Dockerfile
     volumes:
       - ./storage:/home/sirius/data

@@ -8,12 +8,23 @@ from io import BytesIO
 from flask import jsonify
 from datetime import datetime
 from uuid import uuid4
+import sys, json_logging
 import json
+import logging
 import boto3
 
 predictor = Predictor()
 
+logging.basicConfig()
 app = flask.Flask(__name__)
+
+json_logging.init_flask(enable_json=True)
+json_logging.init_request_instrument(app)
+
+# init the logger as usual
+logger = logging.getLogger("inference-logger")
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler(sys.stdout))
 
 #These only work locally..
 default_access_key_id = "AKIAIOSFODNN7EXAMPLE"
@@ -26,7 +37,6 @@ s3_client = session.client(
     aws_secret_access_key=default_access_key,
     endpoint_url='http://storage:9000',
 )
-
 @app.route("/")
 def healh_check():
     return "Running"
@@ -42,7 +52,7 @@ def predict_sync():
 
     response = {'boxes': boxes.tolist(), 'scores': scores.tolist()}
     store_results(image, response.copy(), request.args.get('date'))
-
+    logger.info({"objects_detected" : len(boxes)})
     return response
 
 
@@ -71,7 +81,6 @@ def store_results(image, response, date_override = None):
     s3_client.put_object(Body=str(json.dumps(response)),
                          Bucket='results',
                          Key=os.path.join(day, f"{uuid}.json"))
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port='5000')
