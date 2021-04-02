@@ -26,9 +26,11 @@ services:
     environment:
       - MODEL_NAME=animaldet
     volumes:
-      - ./animal-svc/servable/saved_model:/models/animaldet 
+      - /tmp/servable/saved_model:/models/animaldet 
   storage:
-    image: scireum/s3-ninja:7.0
+    build:
+        context: storage/config
+        dockerfile: Dockerfile
     volumes:
       - ./storage:/home/sirius/data
 

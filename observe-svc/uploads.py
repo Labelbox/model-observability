@@ -88,13 +88,18 @@ def list_inferences(date, bucket_name="results"):
         s3_client.list_objects(Bucket=bucket_name, Prefix=date)['Contents'])
 
 
-def sample_training_data(low_confidence=False, target_examples=10):
+def sample_training_data(low_confidence=False, target_examples=25):
+    #TODO: Should support a demo mode where it just uploads everything..
+    
     date = datetime.now().strftime('%d-%m-%Y')
     #TODO: Check if external ids have already been uploaded
     labels = list_inferences(date, 'results')
     print("LABELS", labels, flush=True)
+    external_ids = [data_row.external_id for data_row  in DATASET.data_rows()]
+    labels = [l for l in labels if l['Key'].replace('.json', '') not in external_ids]
     samples = random.sample(labels, min(len(labels), target_examples))
     to_upload = []
+
     for sample in samples:
         sample = sample['Key']
         image_res = s3_client.get_object(Bucket='images',
@@ -103,14 +108,17 @@ def sample_training_data(low_confidence=False, target_examples=10):
         json_res = s3_client.get_object(Bucket='results', Key=sample)
         json_payload = json.loads(json_res['Body'].read().decode('utf-8'))
         external_id = sample.replace('.json', '')
+
+        # Don't upload if we already uploaded a file on a given day.
+        if external_id in external_ids:
+            continue
         data_row = upload_image_to_labelbox(image_bytes, external_id)
         to_upload.append([data_row, json_payload, external_id])
     upload_annotations(to_upload)
 
-
-if __name__ == '__main__':
-    print("RUNN?", flush=True)
-    sample_training_data()
-    #schedule.every(1).minutes.do(lambda: sample_training_data)
-    #while 1:
-    #    schedule.run_pending()
+#print(__name__, flush = True)
+#if __name__ == '__main__' or __name__ == 'uploads':
+#    sample_training_data()
+#    schedule.every(10).minutes.do(lambda: sample_training_data)
+#    while 1:
+#        schedule.run_pending()

@@ -25,4 +25,4 @@ WORKDIR /usr/src/observe-svc/
 COPY ./observe-svc .
 
 CMD python service.py
-#python uploads.py
+#; python uploads.py

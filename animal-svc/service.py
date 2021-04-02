@@ -1,4 +1,5 @@
 import flask
+from flask import request
 import os
 from PIL import Image
 import numpy as np
@@ -26,11 +27,9 @@ s3_client = session.client(
     endpoint_url='http://storage:9000',
 )
 
-
 @app.route("/")
 def healh_check():
     return "Running"
-
 
 @app.route("/predict", methods=["POST"])
 def predict_sync():
@@ -42,14 +41,20 @@ def predict_sync():
     boxes, scores = predictor.predict(image)
 
     response = {'boxes': boxes.tolist(), 'scores': scores.tolist()}
-    store_results(image, response.copy())
+    store_results(image, response.copy(), request.args.get('date'))
+
     return response
 
 
-def store_results(image, response):
+def store_results(image, response, date_override = None):
     uuid = str(uuid4())
     timestamp = datetime.now()
-    day = timestamp.strftime("%d-%m-%Y")
+    # Allow user to simulate different dates for testing
+    # In prod we wouldn't override the date
+    if date_override is None:
+        day = timestamp.strftime("%d-%m-%Y")
+    else:
+        day = date_override
 
     image_bytes = BytesIO()
     image.save(image_bytes, format="JPEG")

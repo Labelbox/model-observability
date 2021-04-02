@@ -2,6 +2,7 @@ from object_detection.utils import config_util
 import numpy as np
 
 NUM_CLASSES = 1
+num_classes = 1
 num_epochs = 10
 
 pipeline_config = 'object_detection/configs/tf2/ssd_resnet50_v1_fpn_640x640_coco17_tpu-8.config'

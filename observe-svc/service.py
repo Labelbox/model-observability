@@ -93,9 +93,16 @@ def print_webhook_info():
     s3_client.put_object(Body=str(json.dumps({'boxes': boxes})),
                          Bucket='annotations',
                          Key=f"{data_row.external_id}.json")
-    print("Webhook Success", flush = True)
-    return "success"
 
+
+    inference = json.loads(
+                 s3_client.get_object(Bucket='results', Key=f"{data_row.external_id}.json")['Body'].read())
+    gt, pred = calculate_accuracy(inference = inference, annotation = {'boxes': boxes})
+    summary = get_summary(pred, gt)
+    summary.update({'date' : data_row.external_id.split('/')[0]})
+    summary.update({'external_id' : data_row.external_id})
+    logger.info(summary)
+    return "success"
 
 def list_annotations(date, bucket_name="annotations"):
     datetime.strptime(date, '%d-%m-%Y')
@@ -107,11 +114,6 @@ def list_annotations(date, bucket_name="annotations"):
 def daterange(start_date, end_date):
     for n in range(int((end_date - start_date).days)):
         yield start_date + timedelta(n)
-
-
-def get_bbox(response):
-    ...
-    #https://github.com/rafaelpadilla/Object-Detection-Metrics/blob/master/samples/sample_2/sample_2.py
 
 
 def normalize_box(box):
@@ -127,48 +129,58 @@ def swap_dims(box, image_h, image_w):
     ]
 
 
-def calculate_accuracy(annotations, inferences):
+def calculate_batch_accuracy(annotations, inferences):
     annotations = set([annot['Key'] for annot in annotations])
     inferences = set([infer['Key'] for infer in inferences])
     #Files should have the same name
     #Each example is an image
-    gt, pred = [], []
+    gts, preds = [], []
     for example in annotations.intersection(inferences):
         annotation = json.loads(
-            s3_client.get_object(Bucket='annotations',
+                s3_client.get_object(Bucket='annotations',
                                  Key=example)['Body'].read())
         inference = json.loads(
-            s3_client.get_object(Bucket='results', Key=example)['Body'].read())
-        annotation_boxes = [normalize_box(box) for box in annotation['boxes']]
-        image_size = (inference['image_w'], inference['image_h'])
-        gt.extend([
-            BoundingBox(example,
+                s3_client.get_object(Bucket='results', Key=example)['Body'].read())
+        gt, pred = calculate_accuracy(inference, annotation, name = example)
+        gts.extend(gt)
+        preds.extend(pred)
+
+    if not len(gt):
+        return {'samples': 0}
+
+    result = get_summary(preds, gts)
+    return result
+
+
+def get_summary(preds, gts):
+    result = get_coco_summary(gts, preds)
+    result = {
+        k: v for k, v in result.items() if
+        k in ['AP', 'AP50', 'AP75', 'AR1', 'AR10', 'AR100'] and not np.isnan(v)
+    }
+    return result
+
+
+
+def calculate_accuracy(inference, annotation, name = "placeholder"):
+    annotation_boxes = [normalize_box(box) for box in annotation['boxes']]
+    image_size = (inference['image_w'], inference['image_h'])
+    gt = [BoundingBox(name, #always the same since we are doing one at a time
                         class_id="animal",
                         coordinates=coords,
                         format=BBFormat.XYX2Y2,
                         img_size=image_size) for coords in annotation_boxes
-        ])
-        pred.extend([
-            BoundingBox(example,
+    ]
+    pred = [BoundingBox(name,
                         class_id="animal",
                         coordinates=swap_dims(coords, image_size[1],
                                               image_size[0]),
                         img_size=image_size,
                         format=BBFormat.XYX2Y2,
                         confidence=score)
-            for coords, score in zip(inference['boxes'], inference['scores'])
-        ])
-    if not len(gt):
-        return {'samples': 0}
-
-    result = get_coco_summary(gt, pred)
-    result = {
-        k: v for k, v in result.items() if
-        k in ['AP', 'AP50', 'AP75', 'AR1', 'AR10', 'AR100'] and not np.isnan(v)
-    }
-    result.update({'samples': len(gt)})
-    return result
-
+        for coords, score in zip(inference['boxes'], inference['scores'])
+    ]
+    return gt, pred
 
 @app.route('/observe')
 def observe():

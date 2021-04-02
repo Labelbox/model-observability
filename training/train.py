@@ -3,7 +3,6 @@ from object_detection.utils import config_util
 import numpy as np
 
 NUM_CLASSES = 1
-num_epochs = 10
 
 IM_H, IM_W = 640, 640  #384,512
 
@@ -60,7 +59,7 @@ tf.keras.backend.set_learning_phase(True)
 # fit more examples in memory if we wanted to.
 batch_size = 4
 learning_rate = 0.001
-num_batches = 1000
+num_batches = 55
 
 # Select variables in top layers to fine-tune.
 trainable_variables = detection_model.trainable_variables
@@ -186,6 +185,7 @@ saver = tf.compat.v2.train.Checkpoint(model=detection_model)
 
 print('Start fine-tuning!', flush=True)
 for idx in range(num_batches):
+    print(idx)
     # Grab keys for a random subset of examples
     examples = [next(train_ds) for _ in range(batch_size)]
     images = [
@@ -196,10 +196,10 @@ for idx in range(num_batches):
     # Training step (forward pass + backwards pass)
     total_loss = train_step_fn(images, boxes, labels)
 
-    if idx % 200 == 0:
+    if idx % 25 == 0:
         print('batch ' + str(idx) + ' of ' + str(num_batches) + ', loss=' +
               str(total_loss.numpy()),
               flush=True)
-        saver.save('/outputs/adder')
+        saver.save('/tmp/outputs/adder')
 
 print('Done fine-tuning!')
