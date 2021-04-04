@@ -98,7 +98,9 @@ def print_webhook_info():
                  s3_client.get_object(Bucket='results', Key=f"{data_row.external_id}.json")['Body'].read())
     gt, pred = calculate_accuracy(inference = inference, annotation = {'boxes': boxes})
     summary = get_summary(pred, gt)
-    summary.update({'date' : data_row.external_id.split('/')[0]})
+    dtt = datetime.strptime(data_row.external_id.split('/')[0], '%d-%m-%Y')
+    parseable = dtt.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+    summary.update({'date' : parseable})
     summary.update({'external_id' : data_row.external_id})
     logger.info(summary)
     return "success"

@@ -82,4 +82,6 @@ Track model performance over time using Observe
 
 
 
-    
+### Productionizing
+* To productionize this you have to remove the local s3 deployment in favor of a more permanent storage solution
+* s3 directly slips drops in
