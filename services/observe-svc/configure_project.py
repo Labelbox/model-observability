@@ -1,7 +1,7 @@
 from labelbox.schema.ontology import OntologyBuilder, Tool, Classification, Option
 from labelbox import Project, Dataset, Client, LabelingFrontend, Client, Webhook
 from datetime import datetime
-from routes import secret
+from shared import secret
 import json
 import boto3
 import uuid

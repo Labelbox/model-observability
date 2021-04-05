@@ -1,7 +1,7 @@
 services:
   observe-svc:
     build: 
-        context: .
+        context: services
         dockerfile: observe-svc/Dockerfile
     ports:
       - "5001:5000"
@@ -14,7 +14,7 @@ services:
       - LABELBOX_API_KEY
   animal-svc:
     build:
-        context: .
+        context: services
         dockerfile: animal-svc/Dockerfile
     ports:
       - "5000:5000"
@@ -29,8 +29,8 @@ services:
       - /tmp/servable/saved_model:/models/animaldet 
   storage:
     build:
-        context: storage/
-        dockerfile: Dockerfile
+        context: services
+        dockerfile: storage-svc/Dockerfile
     volumes:
       - ./storage:/home/sirius/data
 

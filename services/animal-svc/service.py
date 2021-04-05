@@ -12,31 +12,13 @@ import sys, json_logging
 import json
 import logging
 import boto3
+from shared import get_logger, s3_client
 
 predictor = Predictor()
 
-logging.basicConfig()
 app = flask.Flask(__name__)
+logger = get_logger(app, "inference-logger")
 
-json_logging.init_flask(enable_json=True)
-json_logging.init_request_instrument(app)
-
-# init the logger as usual
-logger = logging.getLogger("inference-logger")
-logger.setLevel(logging.INFO)
-logger.addHandler(logging.StreamHandler(sys.stdout))
-
-#These only work locally..
-default_access_key_id = "AKIAIOSFODNN7EXAMPLE"
-default_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-
-session = boto3.session.Session()
-s3_client = session.client(
-    service_name='s3',
-    aws_access_key_id=default_access_key_id,
-    aws_secret_access_key=default_access_key,
-    endpoint_url='http://storage:9000',
-)
 @app.route("/")
 def healh_check():
     return "Running"

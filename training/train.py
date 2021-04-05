@@ -1,17 +1,14 @@
 from object_detection.builders import model_builder
 from object_detection.utils import config_util
-import numpy as np
-
-NUM_CLASSES = 1
-
-IM_H, IM_W = 640, 640  #384,512
-
 import tensorflow as tf
-
+import numpy as np
+import config
 tf.keras.backend.clear_session()
 
-print('Building model and restoring weights for fine-tuning...', flush=True)
-num_classes = 1
+num_classes = len(config.class_names)
+batch_size = 4
+learning_rate = 0.001
+num_batches = 200
 
 
 def get_model():
@@ -23,17 +20,9 @@ def get_model():
     model_config.ssd.freeze_batchnorm = True
     detection_model = model_builder.build(model_config=model_config,
                                           is_training=True)
-
-    # Set up object-based checkpoint restore --- RetinaNet has two prediction
-    # `heads` --- one for classification, the other for box regression.  We will
-    # restore the box regression head but initialize the classification head
-    # from scratch (we show the omission below by commenting out the line that
-    # we would add if we wanted to restore both heads)
     fake_box_predictor = tf.compat.v2.train.Checkpoint(
         _base_tower_layers_for_heads=detection_model._box_predictor.
         _base_tower_layers_for_heads,
-        # _prediction_heads=detection_model._box_predictor._prediction_heads,
-        #    (i.e., the classification head that we *will not* restore)
         _box_prediction_head=detection_model._box_predictor.
         _box_prediction_head,
     )
@@ -42,26 +31,14 @@ def get_model():
         _box_predictor=fake_box_predictor)
     ckpt = tf.compat.v2.train.Checkpoint(model=fake_model)
     ckpt.restore(checkpoint_path).expect_partial()
-
-    # Run model through a dummy image so that variables are created
-    image, shapes = detection_model.preprocess(tf.zeros([1, IM_H, IM_W, 3]))
+    image, shapes = detection_model.preprocess(tf.zeros([1, config.image_h, config.image_w, 3]))
     prediction_dict = detection_model.predict(image, shapes)
     _ = detection_model.postprocess(prediction_dict, shapes)
     return detection_model
 
 
 detection_model = get_model()
-
 tf.keras.backend.set_learning_phase(True)
-
-# These parameters can be tuned; since our training set has 5 images
-# it doesn't make sense to have a much larger batch size, though we could
-# fit more examples in memory if we wanted to.
-batch_size = 4
-learning_rate = 0.001
-num_batches = 55
-
-# Select variables in top layers to fine-tune.
 trainable_variables = detection_model.trainable_variables
 to_fine_tune = []
 prefixes_to_train = [
@@ -98,7 +75,7 @@ def get_model_train_step_function(model, optimizer, vars_to_fine_tune):
     Returns:
       A scalar tensor representing the total loss for the input batch.
     """
-        shapes = tf.constant(batch_size * [[IM_H, IM_W, 3]], dtype=tf.int32)
+        shapes = tf.constant(batch_size * [[config.image_h, config.image_w, 3]], dtype=tf.int32)
         model.provide_groundtruth(
             groundtruth_boxes_list=groundtruth_boxes_list,
             groundtruth_classes_list=groundtruth_classes_list)
@@ -132,7 +109,6 @@ feature_description = {
     'label': tf.io.VarLenFeature(tf.int64),
 }
 
-
 def _parse_function(example_proto):
     # Parse the input `tf.train.Example` proto using the dictionary above.
     return tf.io.parse_single_example(example_proto, feature_description)
@@ -141,17 +117,14 @@ def _parse_function(example_proto):
 def decode_img(img):
     img = tf.image.decode_jpeg(img, channels=3)
     img = tf.image.convert_image_dtype(img, tf.float32) * 255
-    img = tf.image.resize(img, [IM_H, IM_W])
-    #img = tf.image.random_flip_left_right(img)
-    #img = tf.image.random_flip_up_down(img)
-    #img = tf.image.random_brightness(img, 0.3)
+    img = tf.image.resize(img, [config.image_h, config.image_w])
     return img
 
 
 def get_label(path):
     part_list = tf.strings.split(path, "/")
     # in the case where each class of images is in one folder
-    return part_list[-2] == class_names
+    return part_list[-2] == config.class_names
 
 
 def process_path(file_path):
@@ -163,17 +136,18 @@ def process_path(file_path):
 
 def resss(parsed):
     image = decode_img(parsed['image'])
-    #boxes = tf.stack([parsed[k] for k in ['xmin', 'xmax', 'ymin', 'ymax']], axis = 1)
     box = tf.stack([
         tf.sparse.to_dense(parsed[k]) for k in ['ymin', 'xmin', 'ymax', 'xmax']
     ],
                    axis=1)
     label = tf.cast(tf.sparse.to_dense(parsed['label']), tf.int32)
-    label = tf.one_hot(label, NUM_CLASSES)
+    label = tf.one_hot(label, num_classes)
     return image, box, label
 
 
-train_ds = tf.data.TFRecordDataset(["/tmp/train_data.tfr"])
+
+
+train_ds = tf.data.TFRecordDataset([config.train_tfr_name])
 train_ds = train_ds.cache()
 train_ds = train_ds.map(_parse_function)
 train_ds = train_ds.map(resss)
@@ -183,17 +157,13 @@ train_ds = iter(train_ds)
 
 saver = tf.compat.v2.train.Checkpoint(model=detection_model)
 
-print('Start fine-tuning!', flush=True)
 for idx in range(num_batches):
-    print(idx)
-    # Grab keys for a random subset of examples
     examples = [next(train_ds) for _ in range(batch_size)]
     images = [
         np.expand_dims(example[0].numpy(), axis=0) for example in examples
     ]
     boxes = [example[1].numpy() for example in examples]
     labels = [example[2].numpy() for example in examples]
-    # Training step (forward pass + backwards pass)
     total_loss = train_step_fn(images, boxes, labels)
 
     if idx % 25 == 0:
@@ -201,5 +171,4 @@ for idx in range(num_batches):
               str(total_loss.numpy()),
               flush=True)
         saver.save('/tmp/outputs/adder')
-
 print('Done fine-tuning!')

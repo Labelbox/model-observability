@@ -2,34 +2,15 @@ from labelbox.schema.ontology import OntologyBuilder, Tool, Classification, Opti
 from labelbox import Project, Dataset, Client, LabelingFrontend, Client
 from datetime import datetime
 import logging
-import schedule
 import random
 import json
-import boto3
 import uuid
 import time
+from shared import s3_client, PROJECT, DATASET, BBOX_FEATURE_SCHEMA_ID, TEXT_FEATURE_SCHEMA_ID
 
 client = Client()
 
-project_conf = json.load(open('project_conf.json', 'r'))
-PROJECT = client.get_project(project_conf['project_id'])
-DATASET = client.get_dataset(project_conf['dataset_id'])
-BBOX_FEATURE_SCHEMA_ID = project_conf['bbox_feature_schema_id']
-TEXT_FEATURE_SCHEMA_ID = project_conf['text_feature_schema_id']
-
-logger = logging.getLogger("uploads")
-
-secret = b'webhook_secret'
-default_access_key_id = "AKIAIOSFODNN7EXAMPLE"
-default_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-
-session = boto3.session.Session()
-s3_client = session.client(
-    service_name='s3',
-    aws_access_key_id=default_access_key_id,
-    aws_secret_access_key=default_access_key,
-    endpoint_url='http://storage:9000',
-)
+logger = logging.getLogger("upload")
 
 
 def create_boxes_ndjson(datarow_id, t, l, b, r, confidence):
@@ -68,12 +49,10 @@ def upload_annotations(examples):
                 create_boxes_ndjson(example[0].uid, t, l, b, r,
                                     round(confidence, 2)))
 
-    print("Starting upload..", flush=True)
+    logger.info("Starting upload..")
     upload_task = PROJECT.upload_annotations(name=f"upload-job-{uuid.uuid4()}",
                                              annotations=ndjsons,
                                              validate=False)
-    upload_task.wait_until_done()
-    print("Upload complete..", flush=True)
 
 
 def upload_image_to_labelbox(image_bytes, external_id):
@@ -88,18 +67,17 @@ def list_inferences(date, bucket_name="results"):
         s3_client.list_objects(Bucket=bucket_name, Prefix=date)['Contents'])
 
 
-def sample_training_data(low_confidence=False, target_examples=25):
-    #TODO: Should support a demo mode where it just uploads everything..
-    
+def sample_live_data():
     date = datetime.now().strftime('%d-%m-%Y')
-    #TODO: Check if external ids have already been uploaded
+    sample_training_data(date, target_examples = 25)
+
+
+def sample_training_data(date, target_examples = 25):
     labels = list_inferences(date, 'results')
-    print("LABELS", labels, flush=True)
     external_ids = [data_row.external_id for data_row  in DATASET.data_rows()]
     labels = [l for l in labels if l['Key'].replace('.json', '') not in external_ids]
     samples = random.sample(labels, min(len(labels), target_examples))
     to_upload = []
-
     for sample in samples:
         sample = sample['Key']
         image_res = s3_client.get_object(Bucket='images',
@@ -114,11 +92,18 @@ def sample_training_data(low_confidence=False, target_examples=25):
             continue
         data_row = upload_image_to_labelbox(image_bytes, external_id)
         to_upload.append([data_row, json_payload, external_id])
+    if not len(to_upload):
+        logger.info(f"No examples to upload for date {date}")
+        return 0
+    logger.info(f"Uploading {len(to_upload)} examples for date {date}")
     upload_annotations(to_upload)
+    return len(to_upload)
 
-#print(__name__, flush = True)
-#if __name__ == '__main__' or __name__ == 'uploads':
-#    sample_training_data()
-#    schedule.every(10).minutes.do(lambda: sample_training_data)
-#    while 1:
-#        schedule.run_pending()
+def sample_every_n_hours(n = 3):
+    while True:
+        time.sleep(3600 * n)        
+        sample_training_data()
+
+
+if __name__ == '__main__':    
+    sample_live_data()

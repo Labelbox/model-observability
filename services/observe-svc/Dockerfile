@@ -12,7 +12,6 @@ RUN pip install tensorflow-serving-api \
                 numpy \
                 matplotlib \
                 flask \
-                schedule \
                 labelbox \
                 boto3 \
                 opencv-python \
@@ -20,9 +19,7 @@ RUN pip install tensorflow-serving-api \
                 pip install json-logging \
                 pyqt5
 
-
 WORKDIR /usr/src/observe-svc/
 COPY ./observe-svc .
-
-CMD python service.py
-#; python uploads.py
+COPY shared.py .
+CMD ./run.sh

@@ -3,7 +3,7 @@ import json
 import hashlib
 import subprocess
 import requests
-from uploads import PROJECT
+from uploads import PROJECT, sample_training_data
 from labelbox import Client
 import time
 import subprocess
@@ -19,41 +19,22 @@ from src.evaluators.coco_evaluator import get_coco_summary
 from src.bounding_box import BBFormat, BBType, CoordinatesType, BoundingBox
 import logging
 import sys, json_logging
-
-logging.basicConfig()
+import json_logging
+import logging
+import sys
+from shared import secret, get_logger, s3_client, PROJECT
 
 client = Client()
 
 app = Flask(__name__)
-json_logging.init_flask(enable_json=True)
-json_logging.init_request_instrument(app)
-
-# init the logger as usual
-logger = logging.getLogger("test-logger")
-logger.addHandler(logging.StreamHandler(sys.stdout))
-logger.setLevel(logging.INFO)
+logger = get_logger(app, "metrics-logger")
 
 
-
-secret = b'webhook_secret'
-default_access_key_id = "AKIAIOSFODNN7EXAMPLE"
-default_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-
-session = boto3.session.Session()
-
-
-s3_client = session.client(
-    service_name='s3',
-    aws_access_key_id=default_access_key_id,
-    aws_secret_access_key=default_access_key,
-    endpoint_url='http://storage:9000',
-)
-
-ng_auth_token = os.environ['NGROK_TOKEN']
-subprocess.check_output(f"ngrok authtoken {ng_auth_token}".split(' '))
-os.system('ngrok http 5000 &')
-time.sleep(5)
-
+def init_ngrok():
+    ng_auth_token = os.environ['NGROK_TOKEN']
+    subprocess.check_output(f"ngrok authtoken {ng_auth_token}".split(' '))
+    os.system('ngrok http 5000 &')
+    time.sleep(5)
 
 def update_public_url():
     #We need to update the url in labelbox each time we start the server since it changes
@@ -73,6 +54,10 @@ def update_public_url():
 def health_check():
     return 'alive!'
 
+@app.route('/force-sample', methods = ['POST'])
+def force_upload():
+    date = request.args.get("date")
+    return f"N samples {sample_training_data(date)} for date {date}"
 
 @app.route('/review', methods=['POST'])
 def print_webhook_info():
@@ -92,7 +77,6 @@ def print_webhook_info():
     s3_client.put_object(Body=str(json.dumps({'boxes': boxes})),
                          Bucket='annotations',
                          Key=f"{data_row.external_id}.json")
-
 
     inference = json.loads(
                  s3_client.get_object(Bucket='results', Key=f"{data_row.external_id}.json")['Body'].read())
@@ -161,8 +145,6 @@ def get_summary(preds, gts):
     }
     return result
 
-
-
 def calculate_accuracy(inference, annotation, name = "placeholder"):
     annotation_boxes = [normalize_box(box) for box in annotation['boxes']]
     image_size = (inference['image_w'], inference['image_h'])
@@ -204,8 +186,8 @@ def observe():
     return ious
 
 
-
 if __name__ == '__main__':
+    init_ngrok()
     update_public_url()
     print("Started...")
     app.run(host='0.0.0.0', threaded=True, debug=True, use_reloader = False)

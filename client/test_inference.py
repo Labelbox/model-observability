@@ -50,7 +50,7 @@ import datetime
 import time
 
 today = datetime.datetime.now()
-easy_dates = [today - datetime.timedelta(days = i) for i in range(2,6,1)][::-1]
+easy_dates = [today - datetime.timedelta(days = i) for i in range(2,10,1)][::-1]
 easy_chunks = chunkIt(images, len(easy_dates))
 hard_dates = [today - datetime.timedelta(days = 1), today]
 hard_chunks = chunkIt(images_hard, len(hard_dates))
@@ -58,12 +58,16 @@ hard_chunks = chunkIt(images_hard, len(hard_dates))
 for url_chunks, dates, in [(easy_chunks, easy_dates), ( hard_chunks, hard_dates)]:
     for idx, urls in enumerate(url_chunks):
         date = dates[idx].strftime('%d-%m-%Y')
+        params = {'date' : date}
         for url in urls:
             files = {'image': requests.get(url).content}
-            params = {'date' : date}
             endpoint = "http://0.0.0.0:5000/predict"
             r = requests.post(endpoint, files=files, params = params)
             print(r.status_code)
             print(r.json())
+        res = requests.post("http://0.0.0.0:5001/force-sample", params = params)
+        print(res.text)
+
+
 
 

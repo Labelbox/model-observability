@@ -12,10 +12,9 @@ from multiprocessing.pool import ThreadPool as Pool
 import tensorflow as tf
 from labelbox import Client
 from object_detection.utils import dataset_util
+import config
 
-IMAGE_H, IMAGE_W = 640, 640
-class_names = ['animal']  # ,'human']
-LABELBOX_PROJECT_ID = "ckm4xyfncfgja0760vpfdxoro"
+
 
 def normalize_bbox(label, img_w, img_h):
     """
@@ -40,7 +39,7 @@ def filter_labels(row):
             'name': obj.get('title')
         }
         for obj in row['Label'].get('objects', [])
-        if (obj.get('bbox') is not None and obj.get('title') in class_names)
+        if (obj.get('bbox') is not None and obj.get('title') in config.class_names)
     ]
     return labels
 
@@ -69,7 +68,7 @@ def run_row(row):
     image = row['Labeled Data']
     image_data = Image.open(BytesIO(requests.get(image).content))
     orig_w, orig_h = image_data.size
-    image_data = image_data.resize((IMAGE_W, IMAGE_H))
+    image_data = image_data.resize((config.image_w, config.image_h))
     image_bytes = BytesIO()
     image_data.save(image_bytes, format="JPEG")
     labels = get_example(labels, orig_w, orig_h)
@@ -94,15 +93,15 @@ def run_row(row):
                 dataset_util.float_list_feature(ymaxs),
             'label':
                 dataset_util.int64_list_feature(
-                    [class_names.index(n['name']) for n in labels]),
+                    [config.class_names.index(n['name']) for n in labels]),
         }))
     return tf_example, dataset
 
 
-def write_records(records, train_tfr_name = "/tmp/train_data.tfr", test_tfr_name = "/tmp/test_data.tfr", val_tfr_name = "/tmp/val_data.tfr"):
-    writer_train = tf.io.TFRecordWriter(train_tfr_name)
-    writer_test = tf.io.TFRecordWriter(test_tfr_name)
-    writer_val = tf.io.TFRecordWriter(val_tfr_name)
+def write_records(records):
+    writer_train = tf.io.TFRecordWriter(config.train_tfr_name)
+    writer_test = tf.io.TFRecordWriter(config.test_tfr_name)
+    writer_val = tf.io.TFRecordWriter(config.val_tfr_name)
     for record, dataset in records:
         if dataset == 'train':
             writer_train.write(record.SerializeToString())
@@ -116,7 +115,7 @@ def write_records(records, train_tfr_name = "/tmp/train_data.tfr", test_tfr_name
 
 if __name__ == '__main__':
     client = Client()
-    project = client.get_project(LABELBOX_PROJECT_ID)
+    project = client.get_project(config.labelbox_project_id)
     labels = project.export_labels()
     data = requests.get(labels).json()
     with Pool(12) as pool:
