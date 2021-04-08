@@ -66,6 +66,7 @@ Track model performance over time using Observe
 * Once the service is up and running images posted to inference-svc and associated inferences will be uploaded to labelbox for labeling
 * Click `Start Labeling` and label all of the images in the queue
 * Once an image is reviewed and given a thumbs up, it will be sent back to observe-svc, metrics will be computed, and the result will be logged out
+* Watch the logs to see the metrics get calculated `kubectl logs svc/observe-svc --follow`
 
 
 ### Metrics
@@ -79,10 +80,11 @@ Track model performance over time using Observe
 <img src="images/observe-dashboard.png" height="512" >
 
 ### Productionizing
+- This is a POC with most of what users need to build a production system. 
 * Remove the local s3 deployment in favor of a more permanent storage solution
 * Needs test cases and error handling
 * NGROK needs to be removed and use a public endpoint
 * Model files will need to be stored somewhere other than the host tmp directory.
 * The way that dates are kept track of is not ideal.
 * Add a warmup file for the tensorflow server
-
+* The sampling logic needs to be improved for production. 
