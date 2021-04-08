@@ -30,7 +30,6 @@ Track model performance over time using Observe
 ## Usage:
 
 
-
 ### Train
 1. Train a model
     * Run the ETL: `make etl`
@@ -70,20 +69,20 @@ Track model performance over time using Observe
 
 
 ### Metrics
-* Make sure you made some requests and labeled some images first
+* Make sure you made some requests and labeled some images first. You can use the code under the `clien` dir
 * Go to <your account number>.observeinc.com
-* Create a worksheet
-* Filter on the logs (search for external_id to get logs related to iou scores)
-* Create any reports you want! Learn more about using observe at docs.observeinc.com
-* Here are some cool charts I made:
+* I used a script under deployment/metrics-query.opal to create a metrics dataset
+* The rest of the instructions can be found here (https://docs.observeinc.com/en/latest/content/metrics/MetricsIntro.html)
+* Here are some cool charts that I made:
 
 
 <img src="images/observe-dashboard.png" height="512" >
 
 ### Productionizing
 * To productionize this you have to remove the local s3 deployment in favor of a more permanent storage solution
-* s3 directly slips drops in. Endpoints will have to be updated
 * Needs test cases, error handling, and some tools for developing.
-* Remove NGROK and use a public endpoint
+* NGROK needs to be removed and use a public endpoint
+* Model files will need to be stored somewhere other than the host temp directory.
+
 
 
