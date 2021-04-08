@@ -81,7 +81,9 @@ Track model performance over time using Observe
 * Here are some cool charts I made:
 
 
+<img src="images/observe-dashboard.png" height="512" >
 
 ### Productionizing
 * To productionize this you have to remove the local s3 deployment in favor of a more permanent storage solution
 * s3 directly slips drops in.
+
