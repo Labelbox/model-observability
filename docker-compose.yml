@@ -12,16 +12,16 @@ services:
     environment:
       - NGROK_TOKEN
       - LABELBOX_API_KEY
-  animal-svc:
+  inference-svc:
     build:
         context: services
-        dockerfile: animal-svc/Dockerfile
+        dockerfile: inference-svc/Dockerfile
     ports:
       - "5000:5000"
     links:
       - storage
-      - animal-server
-  animal-server:
+      - inference-server
+  inference-server:
     image: tensorflow/serving:latest
     environment:
       - MODEL_NAME=animaldet

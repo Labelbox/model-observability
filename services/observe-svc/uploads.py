@@ -86,7 +86,6 @@ def sample_training_data(date, target_examples = 25):
         json_res = s3_client.get_object(Bucket='results', Key=sample)
         json_payload = json.loads(json_res['Body'].read().decode('utf-8'))
         external_id = sample.replace('.json', '')
-
         # Don't upload if we already uploaded a file on a given day.
         if external_id in external_ids:
             continue
@@ -107,3 +106,4 @@ def sample_every_n_hours(n = 3):
 
 if __name__ == '__main__':    
     sample_live_data()
+

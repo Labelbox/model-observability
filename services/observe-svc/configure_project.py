@@ -14,9 +14,10 @@ def create_conf():
     dataset = client.create_dataset(name="model-observe-dataset")
     project.datasets.connect(dataset)
 
+    # If you are adding more classes add them here
     ontology_builder = OntologyBuilder(tools=[
         Tool(tool=Tool.Type.BBOX,
-             name="person",
+             name="animal",
              classifications=[
                  Classification(class_type=Classification.Type.TEXT,
                                 instructions="confidence")

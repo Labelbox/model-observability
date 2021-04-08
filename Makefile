@@ -31,12 +31,12 @@ build-svcs:
 	docker-compose build
 
 deploy:
-	./deployment/create_secret.sh
-	nohup ./deployment/mount_drives.sh &
-	kubectl apply -f deployment/animal-server-deployment.yaml,deployment/observe-svc-service.yaml,deployment/storage-service.yaml,deployment/animal-svc-service.yaml,deployment/observe-svc-deployment.yaml,deployment/animal-server-service.yaml,deployment/animal-svc-deployment.yaml,deployment/storage-deployment.yaml
+	#./deployment/create_secret.sh
+	#nohup ./deployment/mount_drives.sh &
+	kubectl apply -f deployment/inference-server-deployment.yaml,deployment/observe-svc-service.yaml,deployment/storage-service.yaml,deployment/inference-svc-service.yaml,deployment/observe-svc-deployment.yaml,deployment/inference-server-service.yaml,deployment/inference-svc-deployment.yaml,deployment/storage-deployment.yaml
 	./deployment/observe-metrics.sh
 	#TODO: Wait for pods to initialize
-	nohup ./deployment/fwd-svc.sh > fwd.out &
+	#nohup ./deployment/fwd-svc.sh > fwd.out &
 
 start-minikube:
 	minikube start

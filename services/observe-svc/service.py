@@ -8,20 +8,13 @@ from labelbox import Client
 import time
 import subprocess
 import hmac
-import random
 from flask import Flask
 from flask import request
 import os
-import boto3
 from labelbox import Client, Label
 import numpy as np
 from src.evaluators.coco_evaluator import get_coco_summary
-from src.bounding_box import BBFormat, BBType, CoordinatesType, BoundingBox
-import logging
-import sys, json_logging
-import json_logging
-import logging
-import sys
+from src.bounding_box import BBFormat, BoundingBox
 from shared import secret, get_logger, s3_client, PROJECT
 
 client = Client()
@@ -72,21 +65,23 @@ def print_webhook_info():
     review = json.loads(payload.decode('utf8'))
     label = client._get_single(Label, review['label']['id'])
     data_row = label.data_row()
-    boxes = [annot['bbox'] for annot in json.loads(label.label)['objects']]
-    #boxes = [normalize_box(box) for box in boxes]
-    s3_client.put_object(Body=str(json.dumps({'boxes': boxes})),
+    
+    # Project must only have bounding box tools.
+    boxes       = [annot['bbox'] for annot in json.loads(label.label)['objects']]
+    class_names = [annot['title'] for annot in json.loads(label.label)['objects']]
+    annotation = {'boxes': boxes, 'class_names' : class_names}
+    s3_client.put_object(Body=str(json.dumps(annotation)),
                          Bucket='annotations',
                          Key=f"{data_row.external_id}.json")
 
     inference = json.loads(
                  s3_client.get_object(Bucket='results', Key=f"{data_row.external_id}.json")['Body'].read())
-    gt, pred = calculate_accuracy(inference = inference, annotation = {'boxes': boxes})
+    gt, pred = construct_boxes(inference = inference, annotation = annotation)
     summary = get_summary(pred, gt)
     dtt = datetime.strptime(data_row.external_id.split('/')[0], '%d-%m-%Y')
     parseable = dtt.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
-    summary.update({'date' : parseable})
-    summary.update({'external_id' : data_row.external_id})
-    logger.info(summary)
+    for k, v in summary.items():
+        logger.info({'class_name' : k, 'external_id' : data_row.external_id, 'date' : parseable, 'metrics' : v})
     return "success"
 
 def list_annotations(date, bucket_name="annotations"):
@@ -95,11 +90,9 @@ def list_annotations(date, bucket_name="annotations"):
         s3_client.list_objects(Bucket=bucket_name,
                                Prefix=date).get('Contents', []))
 
-
 def daterange(start_date, end_date):
     for n in range(int((end_date - start_date).days)):
         yield start_date + timedelta(n)
-
 
 def normalize_box(box):
     return [
@@ -107,84 +100,53 @@ def normalize_box(box):
         box['top'] + box['height']
     ]
 
-
 def swap_dims(box, image_h, image_w):
     return [
         box[1] * image_w, box[0] * image_h, box[3] * image_w, box[2] * image_h
     ]
 
-
-def calculate_batch_accuracy(annotations, inferences):
-    annotations = set([annot['Key'] for annot in annotations])
-    inferences = set([infer['Key'] for infer in inferences])
-    #Files should have the same name
-    #Each example is an image
-    gts, preds = [], []
-    for example in annotations.intersection(inferences):
-        annotation = json.loads(
-                s3_client.get_object(Bucket='annotations',
-                                 Key=example)['Body'].read())
-        inference = json.loads(
-                s3_client.get_object(Bucket='results', Key=example)['Body'].read())
-        gt, pred = calculate_accuracy(inference, annotation, name = example)
-        gts.extend(gt)
-        preds.extend(pred)
-
-    if not len(gt):
-        return {'samples': 0}
-
-    result = get_summary(preds, gts)
-    return result
-
-
 def get_summary(preds, gts):
-    result = get_coco_summary(gts, preds)
-    result = {
-        k: v for k, v in result.items() if
-        k in ['AP', 'AP50', 'AP75', 'AR1', 'AR10', 'AR100'] and not np.isnan(v)
-    }
+    result = {}
+    unique_class_names = set([pred._class_id for pred in preds ] + [gt._class_id for gt in gts ])
+
+    for class_name in unique_class_names:
+        result[class_name] = get_coco_summary(gts, preds) ##et_coco_summary([gt for gt in gts if gt._class_id == class_name], [pred for pred in preds if pred._class_id == class_name])
+        result[class_name] = {
+            k: v for k, v in result[class_name].items() if
+                k in ['AP', 'AP50', 'AP75', 'AR1', 'AR10', 'AR100'] and not np.isnan(v)
+        }
+        scores = [pred._confidence for pred in preds]
+        result[class_name]['score'] = {f"score_{idx + 1}" : v for idx, v in enumerate(sorted(scores, reverse = True))}
+        result[class_name]['predictions'] = 0
+        result[class_name]['labels'] = 0
+
+    for pred in preds:
+        result[pred._class_id]['predictions'] += 1
+
+    for gt in gts:
+        result[gt._class_id]['labels'] += 1
     return result
 
-def calculate_accuracy(inference, annotation, name = "placeholder"):
+
+def construct_boxes(inference, annotation, name = "exp_name"):
     annotation_boxes = [normalize_box(box) for box in annotation['boxes']]
     image_size = (inference['image_w'], inference['image_h'])
-    gt = [BoundingBox(name, #always the same since we are doing one at a time
-                        class_id="animal",
+    gt = [BoundingBox(name,
+                        class_id=class_name,
                         coordinates=coords,
                         format=BBFormat.XYX2Y2,
-                        img_size=image_size) for coords in annotation_boxes
+                        img_size=image_size) for coords, class_name in zip(annotation_boxes, annotation['class_names'])
     ]
     pred = [BoundingBox(name,
-                        class_id="animal",
+                        class_id=class_name,
                         coordinates=swap_dims(coords, image_size[1],
                                               image_size[0]),
                         img_size=image_size,
                         format=BBFormat.XYX2Y2,
                         confidence=score)
-        for coords, score in zip(inference['boxes'], inference['scores'])
+        for coords, score, class_name in zip(inference['boxes'], inference['scores'], inference['class_names'])
     ]
     return gt, pred
-
-@app.route('/observe')
-def observe():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date', start_date)
-    #request_args.get('visualize', False)
-    """
-    This route will be used to see how the model is performing
-    - Optionally visualize some failure to see the cause
-    """
-    ious = {}
-    start_date = datetime.strptime(start_date, '%d-%m-%Y')
-    end_date = datetime.strptime(end_date, '%d-%m-%Y')
-    for date in daterange(start_date, end_date):
-        date = date.strftime('%d-%m-%Y')
-        annotations = list_annotations(date)
-        inferences = list_annotations(date, bucket_name='results')
-        ious[date] = calculate_accuracy(annotations, inferences)
-    logger.info(ious)
-    return ious
-
 
 if __name__ == '__main__':
     init_ngrok()

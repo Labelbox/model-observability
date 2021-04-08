@@ -14,7 +14,7 @@ Track model performance over time using Observe
 ## Components
 1. Training Code
     - Use this to create a trained model
-2. Animal-svc
+2. inference-svc
     - Service for predicting animal bounding boxes in images
 3. Oberserve-svc
     - Uploads model inferences to labelbox
@@ -51,7 +51,7 @@ Track model performance over time using Observe
         * Must have `LABELBOX_API_KEY` and `NGROK_TOKEN` set
     * Mount the drives `nohup ./mount_drives.sh > mounts.out &`
     * Deploy the services
-        * kubectl apply -f `animal-server-deployment.yaml,observe-svc-service.yaml,storage-service.yaml,animal-svc-service.yaml,observe-svc-deployment.yaml,animal-server-service.yaml,animal-svc-deployment.yaml,storage-deployment.yaml`
+        * kubectl apply -f `inference-server-deployment.yaml,observe-svc-service.yaml,storage-service.yaml,inference-svc-service.yaml,observe-svc-deployment.yaml,inference-server-service.yaml,inference-svc-deployment.yaml,storage-deployment.yaml`
     * Deploy observe metrics with `./observe-metrics.sh`
         * Must have `OBSERVE_CUSTOMER_ID` and `OBSERVE_TOKEN` set
     * Make services accessible `nohup ./fwd-svc.sh > fwd.out &`
@@ -67,7 +67,7 @@ Track model performance over time using Observe
 
 ### Labeling
 
-* Once the service is up and running images posted to animal-svc and associated inferences will be uploaded to labelbox for labeling
+* Once the service is up and running images posted to inference-svc and associated inferences will be uploaded to labelbox for labeling
 * Click `Start Labeling` and label all of the images in the queue
 * Once an image is reviewed and given a thumbs up, it will be sent back to observe-svc, metrics will be computed, and the result will be logged out
 
@@ -84,4 +84,4 @@ Track model performance over time using Observe
 
 ### Productionizing
 * To productionize this you have to remove the local s3 deployment in favor of a more permanent storage solution
-* s3 directly slips drops in
+* s3 directly slips drops in.
