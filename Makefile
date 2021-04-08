@@ -57,7 +57,7 @@ clear-deploy:
 	kubectl delete svc --all
 	kubectl delete deployment --all
 	$(shell pkill -f "minikube mount")
-	$(shell pkill -f "kubetl port-forward")
+	$(shell pkill -f "kubectl port-forward")
 	
 redeploy: clear-deploy deploy 
 
