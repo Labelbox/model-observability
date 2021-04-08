@@ -30,35 +30,29 @@ Track model performance over time using Observe
 ## Usage:
 
 
-### Train and Deploy
+
+### Train
 1. Train a model
-    * Change into the training dir: `cd training`
-    * Run the ETL: `./etl.sh`
+    * Run the ETL: `make etl`
         * This requires that you have access to a project with a class called animal and some associated labels
         * Update etl.py to use your project id
-    * Train the model `./train.sh`
-    * Create a servable `./export.sh`    
-2. Configure labelbox project
-    * Change into the observe-svc dir: `cd observe-svc`
-    * Run `configure_project.py`
-3. Create the storage directories
-    * `cd storage/config`
-    * `./configure.sh`
-3. Build the docker containers
-    * Start minikube `minikube start`
-    * Make docker commands work with minikube env `eval $(minikube docker-env)`
-    * Build the images with `docker-compose build`
-4. Deploy to minikube
-    * Change into the deployment dir: `cd deployment`
-    * Set the secrets `./create_secret.sh`
-        * Must have `LABELBOX_API_KEY` and `NGROK_TOKEN` set
-    * Mount the drives `nohup ./mount_drives.sh > mounts.out &`
-    * Deploy the services
-        * kubectl apply -f `inference-server-deployment.yaml,observe-svc-service.yaml,storage-service.yaml,inference-svc-service.yaml,observe-svc-deployment.yaml,inference-server-service.yaml,inference-svc-deployment.yaml,storage-deployment.yaml`
-    * Deploy observe metrics with `./observe-metrics.sh`
-        * Must have `OBSERVE_CUSTOMER_ID` and `OBSERVE_TOKEN` set
-    * Make services accessible `nohup ./fwd-svc.sh > fwd.out &`
+    * Train the model `make train`
+    * Create a servable `make export`
+    * The model artifacts are written to the `/tmp` dir by default.    
 
+### Deployment
+1. If you have never run before run the following:
+    * `make configure-labelbox`
+        - Creates a new labelbox config. This is where the model feedback will be sent to (see services/observe-svc/project_conf.json)
+    * `make configure-storage`
+        - Creates the local storage directory structure under `./storage`
+2. Deploy to minikube
+    * Must have the following env vars set:
+        - `LABELBOX_API_KEY` : Labelbox api key (https://docs.labelbox.com/en/introduction/faq#how-do-i-create-an-api-key-)
+        - `NGROK_TOKEN` : Enables labelbox webhooks to make requests to deployments without public ip addresses (https://ngrok.com)
+        - `OBSERVE_CUSTOMER_ID` and `OBSERVE_TOKEN` used to aggregate both machine and model metrics (https://www.observeinc.com)
+    * `make deploy`
+        - Runs the services.
 
 ### Client
 
@@ -88,5 +82,8 @@ Track model performance over time using Observe
 
 ### Productionizing
 * To productionize this you have to remove the local s3 deployment in favor of a more permanent storage solution
-* s3 directly slips drops in.
+* s3 directly slips drops in. Endpoints will have to be updated
+* Needs test cases, error handling, and some tools for developing.
+* Remove NGROK and use a public endpoint
+
 

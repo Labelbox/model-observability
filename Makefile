@@ -1,15 +1,22 @@
 MODEL_CMD = docker run -e LABELBOX_API_KEY=${LABELBOX_API_KEY} -p 8078:8078 -v /tmp:/tmp -u 0 -it animal_training /bin/bash -c
 
-build-train:
+start-minikube:
+	@x=$(minikube status | grep "Running") && if [ ! -z $x ]; then $(shell minikube start) ; fi 
+
+build-train: start-minikube
+	@eval $$(minikube docker-env) ;\
 	docker build -f training/Dockerfile training/ -t animal_training
 
 etl: build-train
+	@eval $$(minikube docker-env) ;\
 	@$(MODEL_CMD) "python etl.py"
 
 train: build-train
+	@eval $$(minikube docker-env) ;\
 	@$(MODEL_CMD) "python train.py"
 	
 export: build-train
+	@eval $$(minikube docker-env) ;\
 	@$(MODEL_CMD) \
 		"python update_protos.py && \
 	     python object_detection/exporter_main_v2.py \
@@ -21,34 +28,41 @@ export: build-train
 		 mv /tmp/servable/saved_model/* /tmp/servable/saved_model/1/"
 
 configure-labelbox:
-	cd observe-svc && python3 configure_project.py
+	cd services/observe-svc && python3 configure_project.py
 
 configure-storage:
-	cd storage/config && ./configure.sh
+	cd services/storage-svc && ./configure.sh
 
-build-svcs:
+configure-secrets: start-minikube
+	./deployment/create_secret.sh
+	./deployment/observe-metrics.sh
+    
+configure-all: configure-labelbox
+    
+build-svcs: start-minikube
 	@eval $$(minikube docker-env) ;\
 	docker-compose build
 
-deploy:
-	#./deployment/create_secret.sh
-	#nohup ./deployment/mount_drives.sh &
-	kubectl apply -f deployment/inference-server-deployment.yaml,deployment/observe-svc-service.yaml,deployment/storage-service.yaml,deployment/inference-svc-service.yaml,deployment/observe-svc-deployment.yaml,deployment/inference-server-service.yaml,deployment/inference-svc-deployment.yaml,deployment/storage-deployment.yaml
+deploy: start-minikube build-svcs configure-secrets
+	./deployment/create_secret.sh
+	nohup ./deployment/mount_drives.sh &
+	kubectl apply $(ls deployment/*.yaml | awk ' { print " -f " $1 } ')
 	./deployment/observe-metrics.sh
+
 	#TODO: Wait for pods to initialize
 	#nohup ./deployment/fwd-svc.sh > fwd.out &
 
-start-minikube:
-	minikube start
+clear-deploy:
+	kubectl delete svc --all
+	kubectl delete deployment --all
+	$(shell pkill -f "minikube mount")
+	$(shell pkill -f "kubetl port-forward")
+	
+re-deploy: clear-deploy deploy 
 
-stop-minikube:
-	minikube stop
-	minikube delete
 
-#Does everything except the training and directory config
-build-all: start-minikube build-svcs deploy
 
-rebuild: stop-minikube build-all
+
 
 
 
