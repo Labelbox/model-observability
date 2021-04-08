@@ -81,7 +81,7 @@ def print_webhook_info():
     dtt = datetime.strptime(data_row.external_id.split('/')[0], '%d-%m-%Y')
     parseable = dtt.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
     for k, v in summary.items():
-        logger.info({'class_name' : k, 'external_id' : data_row.external_id, 'date' : parseable, 'metrics' : v})
+        logger.info({'class_name' : k, 'external_id' : data_row.external_id, 'date' : parseable, 'metrics' : v, "model_name" : inference['model_name'], 'model_version' : inference['model_version'] })
     return "success"
 
 def list_annotations(date, bucket_name="annotations"):
