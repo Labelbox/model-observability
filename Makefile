@@ -3,21 +3,21 @@ MODEL_CMD = docker run -e LABELBOX_API_KEY=${LABELBOX_API_KEY} -p 8078:8078 -v /
 start-minikube:
 	@x=$(minikube status | grep "Running") && if [ ! -z $x ]; then $(shell minikube start) ; fi 
 
-build-train: start-minikube
-	@eval $$(minikube docker-env) ;\
+build-train:
+	@eval $(minikube docker-env -u) ;\
 	docker build -f training/Dockerfile training/ -t animal_training
 
 etl: build-train
-	@eval $$(minikube docker-env) ;\
-	@$(MODEL_CMD) "python etl.py"
+	@eval $(minikube docker-env -u) ;\
+	$(MODEL_CMD) "python etl.py"
 
 train: build-train
-	@eval $$(minikube docker-env) ;\
-	@$(MODEL_CMD) "python train.py"
+	@eval $(minikube docker-env -u) ;\
+	$(MODEL_CMD) "python train.py"
 	
 export: build-train
-	@eval $$(minikube docker-env) ;\
-	@$(MODEL_CMD) \
+	@eval $(minikube docker-env -u) ;\
+	$(MODEL_CMD) \
 		"python update_protos.py && \
 	     python object_detection/exporter_main_v2.py \
             --input_type image_tensor \
@@ -28,7 +28,10 @@ export: build-train
 		 mv /tmp/servable/saved_model/* /tmp/servable/saved_model/1/"
 
 configure-labelbox:
-	cd services/observe-svc && python3 configure_project.py
+	cd services/observe-svc && \
+		cp ../shared.py . && \
+		python3 configure_project.py && \
+		rm shared.py
 
 configure-storage:
 	cd services/storage-svc && ./configure.sh
@@ -40,17 +43,15 @@ configure-secrets: start-minikube
 configure-all: configure-labelbox
     
 build-svcs: start-minikube
-	@eval $$(minikube docker-env) ;\
+	@eval $(minikube docker-env) ;\
 	docker-compose build
 
 deploy: start-minikube build-svcs configure-secrets
 	./deployment/create_secret.sh
 	nohup ./deployment/mount_drives.sh &
-	kubectl apply $(ls deployment/*.yaml | awk ' { print " -f " $1 } ')
+	kubectl apply -f deployment  
 	./deployment/observe-metrics.sh
-
-	#TODO: Wait for pods to initialize
-	#nohup ./deployment/fwd-svc.sh > fwd.out &
+	nohup ./deployment/fwd-svc.sh > fwd.out &
 
 clear-deploy:
 	kubectl delete svc --all
@@ -58,12 +59,7 @@ clear-deploy:
 	$(shell pkill -f "minikube mount")
 	$(shell pkill -f "kubetl port-forward")
 	
-re-deploy: clear-deploy deploy 
-
-
-
-
-
+redeploy: clear-deploy deploy 
 
 
 

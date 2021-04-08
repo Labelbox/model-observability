@@ -8,7 +8,7 @@ tf.keras.backend.clear_session()
 num_classes = len(config.class_names)
 batch_size = 4
 learning_rate = 0.001
-num_batches = 200
+num_batches = 50
 
 
 def get_model():

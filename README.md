@@ -79,10 +79,10 @@ Track model performance over time using Observe
 <img src="images/observe-dashboard.png" height="512" >
 
 ### Productionizing
-* To productionize this you have to remove the local s3 deployment in favor of a more permanent storage solution
-* Needs test cases, error handling, and some tools for developing.
+* Remove the local s3 deployment in favor of a more permanent storage solution
+* Needs test cases and error handling
 * NGROK needs to be removed and use a public endpoint
-* Model files will need to be stored somewhere other than the host temp directory.
-
-
+* Model files will need to be stored somewhere other than the host tmp directory.
+* The way that dates are kept track of is not ideal.
+* Add a warmup file for the tensorflow server
 
