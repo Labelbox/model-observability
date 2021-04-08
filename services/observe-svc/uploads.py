@@ -1,5 +1,4 @@
-from labelbox.schema.ontology import OntologyBuilder, Tool, Classification, Option
-from labelbox import Project, Dataset, Client, LabelingFrontend, Client
+from labelbox import Client
 from datetime import datetime
 import logging
 import random
@@ -9,7 +8,6 @@ import time
 from shared import s3_client, PROJECT, DATASET, BBOX_FEATURE_SCHEMA_ID, TEXT_FEATURE_SCHEMA_ID
 
 client = Client()
-
 logger = logging.getLogger("upload")
 
 
@@ -64,7 +62,7 @@ def upload_image_to_labelbox(image_bytes, external_id):
 def list_inferences(date, bucket_name="results"):
     assert bucket_name in ['images', 'results'], bucket_name
     return list(
-        s3_client.list_objects(Bucket=bucket_name, Prefix=date)['Contents'])
+        s3_client.list_objects(Bucket=bucket_name, Prefix=date).get('Contents', []))
 
 
 def sample_live_data():
@@ -108,4 +106,4 @@ def sample_every_n_hours(n=3):
 
 
 if __name__ == '__main__':
-    sample_live_data()
+    sample_every_n_hours()

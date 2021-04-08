@@ -129,9 +129,7 @@ def get_summary(preds, gts):
                              [gt._class_id for gt in gts])
 
     for class_name in unique_class_names:
-        result[class_name] = get_coco_summary(
-            gts, preds
-        )  ##et_coco_summary([gt for gt in gts if gt._class_id == class_name], [pred for pred in preds if pred._class_id == class_name])
+        result[class_name] = get_coco_summary([gt for gt in gts if gt._class_id == class_name], [pred for pred in preds if pred._class_id == class_name])
         result[class_name] = {
             k: v
             for k, v in result[class_name].items()
