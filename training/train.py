@@ -3,6 +3,7 @@ from object_detection.utils import config_util
 import tensorflow as tf
 import numpy as np
 import config
+
 tf.keras.backend.clear_session()
 
 num_classes = len(config.class_names)
@@ -31,7 +32,8 @@ def get_model():
         _box_predictor=fake_box_predictor)
     ckpt = tf.compat.v2.train.Checkpoint(model=fake_model)
     ckpt.restore(checkpoint_path).expect_partial()
-    image, shapes = detection_model.preprocess(tf.zeros([1, config.image_h, config.image_w, 3]))
+    image, shapes = detection_model.preprocess(
+        tf.zeros([1, config.image_h, config.image_w, 3]))
     prediction_dict = detection_model.predict(image, shapes)
     _ = detection_model.postprocess(prediction_dict, shapes)
     return detection_model
@@ -75,7 +77,8 @@ def get_model_train_step_function(model, optimizer, vars_to_fine_tune):
     Returns:
       A scalar tensor representing the total loss for the input batch.
     """
-        shapes = tf.constant(batch_size * [[config.image_h, config.image_w, 3]], dtype=tf.int32)
+        shapes = tf.constant(batch_size * [[config.image_h, config.image_w, 3]],
+                             dtype=tf.int32)
         model.provide_groundtruth(
             groundtruth_boxes_list=groundtruth_boxes_list,
             groundtruth_classes_list=groundtruth_classes_list)
@@ -108,6 +111,7 @@ feature_description = {
     'ymax': tf.io.VarLenFeature(tf.float32),
     'label': tf.io.VarLenFeature(tf.int64),
 }
+
 
 def _parse_function(example_proto):
     # Parse the input `tf.train.Example` proto using the dictionary above.
@@ -143,8 +147,6 @@ def resss(parsed):
     label = tf.cast(tf.sparse.to_dense(parsed['label']), tf.int32)
     label = tf.one_hot(label, num_classes)
     return image, box, label
-
-
 
 
 train_ds = tf.data.TFRecordDataset([config.train_tfr_name])

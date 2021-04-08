@@ -69,13 +69,15 @@ def list_inferences(date, bucket_name="results"):
 
 def sample_live_data():
     date = datetime.now().strftime('%d-%m-%Y')
-    sample_training_data(date, target_examples = 25)
+    sample_training_data(date, target_examples=25)
 
 
-def sample_training_data(date, target_examples = 25):
+def sample_training_data(date, target_examples=25):
     labels = list_inferences(date, 'results')
-    external_ids = [data_row.external_id for data_row  in DATASET.data_rows()]
-    labels = [l for l in labels if l['Key'].replace('.json', '') not in external_ids]
+    external_ids = [data_row.external_id for data_row in DATASET.data_rows()]
+    labels = [
+        l for l in labels if l['Key'].replace('.json', '') not in external_ids
+    ]
     samples = random.sample(labels, min(len(labels), target_examples))
     to_upload = []
     for sample in samples:
@@ -98,12 +100,12 @@ def sample_training_data(date, target_examples = 25):
     upload_annotations(to_upload)
     return len(to_upload)
 
-def sample_every_n_hours(n = 3):
+
+def sample_every_n_hours(n=3):
     while True:
-        time.sleep(3600 * n)        
+        time.sleep(3600 * n)
         sample_training_data()
 
 
-if __name__ == '__main__':    
+if __name__ == '__main__':
     sample_live_data()
-

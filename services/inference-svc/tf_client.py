@@ -6,6 +6,7 @@ import grpc
 
 
 class Predictor:
+
     def __init__(self, host="inference-server", port=8500):
         addr = f"{host}:{port}"
         channel = grpc.insecure_channel(addr)

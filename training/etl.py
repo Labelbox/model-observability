@@ -15,7 +15,6 @@ from object_detection.utils import dataset_util
 import config
 
 
-
 def normalize_bbox(label, img_w, img_h):
     """
     - Reformat labelbox bounding box labels to kitti
@@ -29,19 +28,18 @@ def normalize_bbox(label, img_w, img_h):
         (bbox['top'] + bbox['height']) / img_h,  # bottom
     ]
 
+
 def filter_labels(row):
     """
     Reads a sinlge label from a labelbox export and extracts only bounding box annotations
     """
-    labels = [
-        {
-            'bbox': obj.get('bbox'),
-            'name': obj.get('title')
-        }
-        for obj in row['Label'].get('objects', [])
-        if (obj.get('bbox') is not None and obj.get('title') in config.class_names)
-    ]
+    labels = [{
+        'bbox': obj.get('bbox'),
+        'name': obj.get('title')
+    } for obj in row['Label'].get('objects', []) if (
+        obj.get('bbox') is not None and obj.get('title') in config.class_names)]
     return labels
+
 
 def partition_function(row, test_percentage=0.15):
     """
@@ -51,7 +49,8 @@ def partition_function(row, test_percentage=0.15):
         return 'test'
     else:
         return 'train'
-    
+
+
 def get_example(labels, orig_w, orig_h):
     examples = []
     for label in labels:
@@ -59,6 +58,7 @@ def get_example(labels, orig_w, orig_h):
         normalized_box = normalize_bbox(label, orig_w, orig_h)
         examples.append({'name': class_name, 'bbox': normalized_box})
     return examples
+
 
 def run_row(row):
     idx, row = row
@@ -124,4 +124,3 @@ if __name__ == '__main__':
                  total=len(data)))
     records = [r for r in records if r is not None]
     write_records(records)
-
