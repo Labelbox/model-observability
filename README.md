@@ -24,6 +24,9 @@ Track model performance over time using Observe
 5. Deployment
     - Contains all of the configuration for the minikube deployment
 
+<img src="images/design.png" height="384" >
+
+
 ## Usage:
 
 
