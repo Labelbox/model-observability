@@ -1,8 +1,8 @@
 services:
-  observe-svc:
+  monitor-svc:
     build: 
         context: services
-        dockerfile: observe-svc/Dockerfile
+        dockerfile: monitor-svc/Dockerfile
     ports:
       - "5001:5000"
     volumes:

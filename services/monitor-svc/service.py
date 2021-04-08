@@ -1,21 +1,21 @@
-from datetime import datetime, timedelta
-import json
 import hashlib
-import subprocess
-import requests
-from uploads import PROJECT, sample_training_data
-from labelbox import Client
-import time
-import subprocess
 import hmac
+import json
+import os
+import subprocess
+import time
+from datetime import datetime, timedelta
+
+import numpy as np
+import requests
 from flask import Flask
 from flask import request
-import os
 from labelbox import Client, Label
-import numpy as np
-from src.evaluators.coco_evaluator import get_coco_summary
-from src.bounding_box import BBFormat, BoundingBox
 from shared import secret, get_logger, s3_client, PROJECT
+from src.bounding_box import BBFormat, BoundingBox
+from src.evaluators.coco_evaluator import get_coco_summary
+
+from uploads import sample_training_data
 
 client = Client()
 
@@ -31,14 +31,14 @@ def init_ngrok():
 
 
 def update_public_url():
-    #We need to update the url in labelbox each time we start the server since it changes
+    # We need to update the url in labelbox each time we start the server since it changes
     res = requests.get('http://localhost:4040/api/tunnels')
     assert res.status_code == 200, f"ngrok probably isn't running. {res.status_code}, {res.text}"
     tunnels = res.json()['tunnels']
     tunnel = [
         t for t in tunnels if t['config']['addr'].split(':')[-1] == str(5000)
     ]
-    tunnel = tunnel[0]  #Should only be one..
+    tunnel = tunnel[0]  # Should only be one..
     public_url = tunnel['public_url']
     webhook = next(PROJECT.webhooks())
     webhook.update(url=public_url + "/review")
@@ -113,7 +113,7 @@ def daterange(start_date, end_date):
 def normalize_box(box):
     return [
         box['left'], box['top'], box['left'] + box['width'],
-        box['top'] + box['height']
+                                 box['top'] + box['height']
     ]
 
 
@@ -136,7 +136,7 @@ def get_summary(preds, gts):
             k: v
             for k, v in result[class_name].items()
             if k in ['AP', 'AP50', 'AP75', 'AR1', 'AR10', 'AR100'] and
-            not np.isnan(v)
+               not np.isnan(v)
         }
         scores = [pred._confidence for pred in preds]
         result[class_name]['score'] = {
@@ -163,7 +163,7 @@ def construct_boxes(inference, annotation, name="exp_name"):
                     coordinates=coords,
                     format=BBFormat.XYX2Y2,
                     img_size=image_size) for coords, class_name in zip(
-                        annotation_boxes, annotation['class_names'])
+            annotation_boxes, annotation['class_names'])
     ]
     pred = [
         BoundingBox(name,

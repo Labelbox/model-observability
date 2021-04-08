@@ -28,7 +28,7 @@ export: build-train
 		 mv /tmp/servable/saved_model/* /tmp/servable/saved_model/1/"
 
 configure-labelbox:
-	cd services/observe-svc && \
+	cd services/monitor-svc && \
 		cp ../shared.py . && \
 		python3 configure_project.py && \
 		rm shared.py

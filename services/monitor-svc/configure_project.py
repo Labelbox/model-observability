@@ -1,28 +1,33 @@
-from labelbox.schema.ontology import OntologyBuilder, Tool, Classification, Option
-from labelbox import Project, Dataset, Client, LabelingFrontend, Client, Webhook
-from datetime import datetime
-from shared import secret
 import json
-import boto3
-import uuid
 
-client = Client()
+from labelbox import LabelingFrontend, Client, Webhook
+from labelbox.schema.ontology import OntologyBuilder, Tool, Classification
+
+from shared import secret
 
 
 def create_conf():
+    client = Client()
+
     project = client.create_project(name="model-observe-project")
     dataset = client.create_dataset(name="model-observe-dataset")
     project.datasets.connect(dataset)
 
     # If you are adding more classes add them here
-    ontology_builder = OntologyBuilder(tools=[
-        Tool(tool=Tool.Type.BBOX,
-             name="animal",
-             classifications=[
-                 Classification(class_type=Classification.Type.TEXT,
-                                instructions="confidence")
-             ]),
-    ])
+    ontology_builder = OntologyBuilder(
+        tools=[
+            Tool(
+                tool=Tool.Type.BBOX,
+                name="animal",
+                classifications=[
+                    Classification(
+                        class_type=Classification.Type.TEXT,
+                        instructions="confidence"
+                    )
+                ]
+            ),
+        ]
+    )
     editor = next(
         client.get_labeling_frontends(where=LabelingFrontend.name == 'editor'))
     project.setup(editor, ontology_builder.asdict())

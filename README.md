@@ -42,7 +42,7 @@ Track model performance over time using Observe
 ### Deployment
 1. If you have never run before run the following:
     * `make configure-labelbox`
-        - Creates a new labelbox config. This is where the model feedback will be sent to (see services/observe-svc/project_conf.json)
+        - Creates a new labelbox config. This is where the model feedback will be sent to (see services/monitor-svc/project_conf.json)
     * `make configure-storage`
         - Creates the local storage directory structure under `./storage`
 2. Deploy to minikube
@@ -65,8 +65,8 @@ Track model performance over time using Observe
 
 * Once the service is up and running images posted to inference-svc and associated inferences will be uploaded to labelbox for labeling
 * Click `Start Labeling` and label all of the images in the queue
-* Once an image is reviewed and given a thumbs up, it will be sent back to observe-svc, metrics will be computed, and the result will be logged out
-* Watch the logs to see the metrics get calculated `kubectl logs svc/observe-svc --follow`
+* Once an image is reviewed and given a thumbs up, it will be sent back to monitor-svc, metrics will be computed, and the result will be logged out
+* Watch the logs to see the metrics get calculated `kubectl logs svc/monitor-svc --follow`
 
 
 ### Metrics
