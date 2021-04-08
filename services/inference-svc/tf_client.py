@@ -23,7 +23,8 @@ class Predictor:
     def predict(self, image: np.ndarray, min_score=0.5):
         image = np.expand_dims(image, axis=0)
         self.request.inputs['input_tensor'].CopyFrom(
-            tf.make_tensor_proto(image))
+            tf.make_tensor_proto(image)
+        )
         result = self.stub.Predict(self.request, 10.0)  # 10 secs timeout
 
         boxes = self.as_np(result.outputs['detection_boxes'])

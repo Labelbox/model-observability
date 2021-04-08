@@ -15,11 +15,12 @@ RUN pip install tensorflow-serving-api \
                 labelbox \
                 boto3 \
                 opencv-python \
-                git+https://github.com/rafaelpadilla/review_object_detection_metrics.git \
-                pip install json-logging \
-                pyqt5
+                json-logging \
+                pyqt5 \
+                influxdb \
+                git+https://github.com/rafaelpadilla/review_object_detection_metrics.git
 
-WORKDIR /usr/src/observe-svc/
-COPY ./observe-svc .
+WORKDIR /usr/src/monitor-svc/
+COPY ./monitor-svc .
 COPY shared.py .
 CMD ./run.sh

@@ -1,10 +1,10 @@
-from labelbox import Client
-from datetime import datetime
+import json
 import logging
 import random
-import json
-import uuid
 import time
+import uuid
+from datetime import datetime
+from labelbox import Client
 from shared import s3_client, PROJECT, DATASET, BBOX_FEATURE_SCHEMA_ID, TEXT_FEATURE_SCHEMA_ID
 
 client = Client()
@@ -34,7 +34,7 @@ def create_boxes_ndjson(datarow_id, t, l, b, r, confidence):
 
 
 def upload_annotations(examples):
-    #Error handling needs to be supported.. eg. write out error file url.
+    # Error handling needs to be supported.. eg. write out error file url.
     ndjsons = []
     for example in examples:
         inference = example[1]
