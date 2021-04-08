@@ -1,10 +1,18 @@
+networks:
+  front-tier:
+  back-tier:
+
+volumes:
+  influxdb-storage:
+  grafana-storage:
+
 services:
   monitor-svc:
     build: 
         context: services
         dockerfile: monitor-svc/Dockerfile
     ports:
-      - "5001:5000"
+      - "5000:5000"
     volumes:
       - .:/data/
     links:
@@ -17,20 +25,54 @@ services:
         context: services
         dockerfile: inference-svc/Dockerfile
     ports:
-      - "5000:5000"
+      - "5100:5100"
     links:
       - storage
       - inference-server
+    networks:
+      - back-tier
+      - front-tier
+
   inference-server:
     image: tensorflow/serving:latest
     environment:
       - MODEL_NAME=animaldet
     volumes:
-      - /tmp/servable/saved_model:/models/animaldet 
+      - /tmp/servable/saved_model:/models/animaldet
+    networks:
+      - back-tier
+
   storage:
     build:
         context: services
         dockerfile: storage-svc/Dockerfile
     volumes:
       - ./storage:/home/sirius/data
+  influxdb:
+    image: influxdb:latest
+    ports:
+      - '8086:8086'
+    volumes:
+      - influxdb-storage:/var/lib/influxdb
+    networks:
+      - back-tier
+    environment:
+      - INFLUXDB_DB="monitoring-db"
+      - INFLUXDB_ADMIN_USER=${INFLUXDB_USR}
+      - INFLUXDB_ADMIN_PASSWORD=${INFLUXDB_PAS}
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - '3005:3005'
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana-provisioning/:/etc/grafana/provisioning
+    networks:
+      - front-tier
+      - back-tier
+    depends_on:
+      - influxdb
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=pass
 

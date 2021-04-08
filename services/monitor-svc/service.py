@@ -10,17 +10,30 @@ import numpy as np
 import requests
 from flask import Flask
 from flask import request
+from influxdb import InfluxDBClient
 from labelbox import Client, Label
-from shared import secret, get_logger, s3_client, PROJECT
 from src.bounding_box import BBFormat, BoundingBox
 from src.evaluators.coco_evaluator import get_coco_summary
 
+from settings import INFLUXDB_HOST, INFLUXDB_PORT, INFLUXDB_USR, INFLUXDB_PAS, INFLUXDB_NAME
+from shared import secret, get_logger, s3_client, PROJECT
 from uploads import sample_training_data
 
 client = Client()
 
 app = Flask(__name__)
 logger = get_logger(app, "metrics-logger")
+
+
+def make_influx_db_client():
+    db_client = InfluxDBClient(
+        INFLUXDB_HOST, INFLUXDB_PORT, INFLUXDB_USR, INFLUXDB_PAS, INFLUXDB_NAME
+    )
+    db_client.create_database(INFLUXDB_NAME)
+    return db_client
+
+
+influx_client = make_influx_db_client()
 
 
 def init_ngrok():
@@ -58,13 +71,17 @@ def force_upload():
 @app.route('/review', methods=['POST'])
 def print_webhook_info():
     payload = request.data
-    computed_signature = hmac.new(secret, msg=payload,
-                                  digestmod=hashlib.sha1).hexdigest()
+    computed_signature = hmac.new(
+        secret,
+        msg=payload,
+        digestmod=hashlib.sha1
+    ).hexdigest()
     if request.headers['X-Hub-Signature'] != 'sha1=' + computed_signature:
         print(
             'Error: computed_signature does not match signature provided in the headers'
         )
         return 'Error', 500, 200
+
     review = json.loads(payload.decode('utf8'))
     label = client._get_single(Label, review['label']['id'])
     data_row = label.data_row()
@@ -75,26 +92,52 @@ def print_webhook_info():
         annot['title'] for annot in json.loads(label.label)['objects']
     ]
     annotation = {'boxes': boxes, 'class_names': class_names}
-    s3_client.put_object(Body=str(json.dumps(annotation)),
-                         Bucket='annotations',
-                         Key=f"{data_row.external_id}.json")
+    s3_client.put_object(
+        Body=str(json.dumps(annotation)),
+        Bucket='annotations',
+        Key=f"{data_row.external_id}.json"
+    )
 
     inference = json.loads(
-        s3_client.get_object(Bucket='results',
-                             Key=f"{data_row.external_id}.json")['Body'].read())
+        s3_client.get_object(
+            Bucket='results',
+            Key=f"{data_row.external_id}.json")['Body'].read()
+    )
+
     gt, pred = construct_boxes(inference=inference, annotation=annotation)
     summary = get_summary(pred, gt)
-    dtt = datetime.strptime(data_row.external_id.split('/')[0], '%d-%m-%Y')
-    parseable = dtt.strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+
+    parsed_ts = (
+        datetime
+            .strptime(data_row.external_id.split('/')[0], '%d-%m-%Y')
+            .strftime('%Y-%m-%dT%H:%M:%S.%f%z')
+    )
+
+    json_body = [
+        {
+            "measurement": "model-stats",
+            "tags": {
+                "model_name": inference["model_name"],
+                "model_version": inference["model_version"]
+            },
+            "time": parsed_ts,
+            "fields": {
+                **summary
+
+            },
+        }
+    ]
+    influx_client.write_points(json_body)
+
     for k, v in summary.items():
-        logger.info({
-            'class_name': k,
-            'external_id': data_row.external_id,
-            'date': parseable,
-            'metrics': v,
-            "model_name": inference['model_name'],
-            'model_version': inference['model_version']
-        })
+        logger.info(
+            {
+                'class_name': k,
+                'external_id': data_row.external_id,
+                'date': parsed_ts,
+                'metrics': v,
+            }
+        )
     return "success"
 
 
@@ -124,33 +167,20 @@ def swap_dims(box, image_h, image_w):
 
 
 def get_summary(preds, gts):
-    result = {}
-    unique_class_names = set([pred._class_id for pred in preds] +
-                             [gt._class_id for gt in gts])
+    result = get_coco_summary(gts, preds)
+    result = {
+        k: v
+        for k, v in result.items()
+        if k in ['AP', 'AP50', 'AP75', 'AR1', 'AR10', 'AR100'] and
+           not np.isnan(v)
+    }
+    scores = np.array([pred._confidence for pred in preds])
+    result['mean_score'] = scores.mean()
+    result['max_score'] = scores.max()
+    result["min_score"] = scores.min()
+    result['predictions'] = len(preds)
+    result['labels'] = len(gts)
 
-    for class_name in unique_class_names:
-        result[class_name] = get_coco_summary(
-            gts, preds
-        )  ##et_coco_summary([gt for gt in gts if gt._class_id == class_name], [pred for pred in preds if pred._class_id == class_name])
-        result[class_name] = {
-            k: v
-            for k, v in result[class_name].items()
-            if k in ['AP', 'AP50', 'AP75', 'AR1', 'AR10', 'AR100'] and
-               not np.isnan(v)
-        }
-        scores = [pred._confidence for pred in preds]
-        result[class_name]['score'] = {
-            f"score_{idx + 1}": v
-            for idx, v in enumerate(sorted(scores, reverse=True))
-        }
-        result[class_name]['predictions'] = 0
-        result[class_name]['labels'] = 0
-
-    for pred in preds:
-        result[pred._class_id]['predictions'] += 1
-
-    for gt in gts:
-        result[gt._class_id]['labels'] += 1
     return result
 
 
@@ -158,20 +188,23 @@ def construct_boxes(inference, annotation, name="exp_name"):
     annotation_boxes = [normalize_box(box) for box in annotation['boxes']]
     image_size = (inference['image_w'], inference['image_h'])
     gt = [
-        BoundingBox(name,
-                    class_id=class_name,
-                    coordinates=coords,
-                    format=BBFormat.XYX2Y2,
-                    img_size=image_size) for coords, class_name in zip(
+        BoundingBox(
+            name,
+            class_id=class_name,
+            coordinates=coords,
+            format=BBFormat.XYX2Y2,
+            img_size=image_size) for coords, class_name in zip(
             annotation_boxes, annotation['class_names'])
     ]
     pred = [
-        BoundingBox(name,
-                    class_id=class_name,
-                    coordinates=swap_dims(coords, image_size[1], image_size[0]),
-                    img_size=image_size,
-                    format=BBFormat.XYX2Y2,
-                    confidence=score) for coords, score, class_name in
+        BoundingBox(
+            name,
+            class_id=class_name,
+            coordinates=swap_dims(coords, image_size[1], image_size[0]),
+            img_size=image_size,
+            format=BBFormat.XYX2Y2,
+            confidence=score
+        ) for coords, score, class_name in
         zip(inference['boxes'], inference['scores'], inference['class_names'])
     ]
     return gt, pred

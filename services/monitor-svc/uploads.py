@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime
 
 from labelbox import Client
+
 from shared import s3_client, PROJECT, DATASET, BBOX_FEATURE_SCHEMA_ID, TEXT_FEATURE_SCHEMA_ID
 
 client = Client()
@@ -28,10 +29,12 @@ def create_boxes_ndjson(datarow_id, t, l, b, r, confidence):
             "height": int(b - t),
             "width": int(r - l)
         },
-        "classifications": [{
-            'schemaId': TEXT_FEATURE_SCHEMA_ID,
-            'answer': str(confidence)
-        }]
+        "classifications": [
+            {
+                'schemaId': TEXT_FEATURE_SCHEMA_ID,
+                'answer': str(confidence)
+            }
+        ]
     }
 
 
