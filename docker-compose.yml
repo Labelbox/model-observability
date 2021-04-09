@@ -75,7 +75,7 @@ services:
       - "3005"
     volumes:
       - grafana-storage:/var/lib/grafana
-      - ./grafana-provisioning/:/etc/grafana/provisioning
+      - ./services/grafana/:/etc/grafana/provisioning
     networks:
       - front-tier
       - back-tier
