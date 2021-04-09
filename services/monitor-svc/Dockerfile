@@ -22,5 +22,4 @@ RUN pip install tensorflow-serving-api \
 
 WORKDIR /usr/src/monitor-svc/
 COPY ./monitor-svc .
-COPY shared.py .
 CMD ./run.sh

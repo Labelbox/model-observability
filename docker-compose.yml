@@ -8,31 +8,33 @@ volumes:
 
 services:
   monitor-svc:
-    build: 
-        context: services
-        dockerfile: monitor-svc/Dockerfile
+    build:
+      context: services
+      dockerfile: monitor-svc/Dockerfile
     ports:
       - "5000:5000"
-    volumes:
-      - .:/data/
-    links:
-      - storage
+    depends_on:
+      - influxdb
+      - inference-svc
     environment:
       - NGROK_TOKEN
       - LABELBOX_API_KEY
-  inference-svc:
-    build:
-        context: services
-        dockerfile: inference-svc/Dockerfile
-    ports:
-      - "5100:5100"
-    links:
-      - storage
-      - inference-server
+      - INFLUXDB_USR
+      - INFLUXDB_PAS
     networks:
       - back-tier
       - front-tier
-
+  inference-svc:
+    build:
+      context: services
+      dockerfile: inference-svc/Dockerfile
+    ports:
+      - "5100:5100"
+    networks:
+      - back-tier
+      - front-tier
+    depends_on:
+      - inference-server
   inference-server:
     image: tensorflow/serving:latest
     environment:
@@ -41,15 +43,17 @@ services:
       - /tmp/servable/saved_model:/models/animaldet
     networks:
       - back-tier
-
   storage:
     build:
-        context: services
-        dockerfile: storage-svc/Dockerfile
+      context: services
+      dockerfile: storage-svc/Dockerfile
     volumes:
-      - ./storage:/home/sirius/data
+      - ./storage:/host/storage
+    networks:
+      - back-tier
+      - front-tier
   influxdb:
-    image: influxdb:latest
+    image: influxdb:1.8
     ports:
       - '8086:8086'
     volumes:
@@ -57,13 +61,18 @@ services:
     networks:
       - back-tier
     environment:
-      - INFLUXDB_DB="monitoring-db"
+      - INFLUXDB_USER=${INFLUXDB_USR}
+      - INFLUXDB_USER_PASSWORD=${INFLUXDB_PAS}
+      - INFLUXDB_ADMIN_ENABLED=true
+      - INFLUXDB_DB=monitoring-db
       - INFLUXDB_ADMIN_USER=${INFLUXDB_USR}
       - INFLUXDB_ADMIN_PASSWORD=${INFLUXDB_PAS}
   grafana:
     image: grafana/grafana:latest
     ports:
-      - '3005:3005'
+      - '3005:3000'
+    expose:
+      - "3005"
     volumes:
       - grafana-storage:/var/lib/grafana
       - ./grafana-provisioning/:/etc/grafana/provisioning

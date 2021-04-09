@@ -1,18 +1,15 @@
-import flask
-from flask import request
-import os
-from PIL import Image
-import numpy as np
-from tf_client import Predictor
-from io import BytesIO
-from flask import jsonify
-from datetime import datetime
-from uuid import uuid4
-import sys, json_logging
 import json
-import logging
-import boto3
+import os
+from datetime import datetime
+from io import BytesIO
+from uuid import uuid4
+
+import flask
+from PIL import Image
+from flask import request
 from shared import get_logger, s3_client
+
+from tf_client import Predictor
 
 predictor = Predictor()
 
@@ -57,21 +54,27 @@ def store_results(image, response, date_override=None):
 
     image_bytes = BytesIO()
     image.save(image_bytes, format="JPEG")
-    s3_client.put_object(Body=image_bytes.getvalue(),
-                         Bucket='images',
-                         Key=os.path.join(day, f"{uuid}.jpg"))
+    s3_client.put_object(
+        Body=image_bytes.getvalue(),
+        Bucket='images',
+        Key=os.path.join(day, f"{uuid}.jpg")
+    )
 
-    response.update({
-        'timestamp': str(timestamp),
-        'image_h': image.size[1],
-        'image_w': image.size[0],
-        'model_name': 'animal-detector',
-        'model_version': '0.0.1'
-    })
+    response.update(
+        {
+            'timestamp': str(timestamp),
+            'image_h': image.size[1],
+            'image_w': image.size[0],
+            'model_name': 'animal-detector',
+            'model_version': '0.0.1'
+        }
+    )
 
-    s3_client.put_object(Body=str(json.dumps(response)),
-                         Bucket='results',
-                         Key=os.path.join(day, f"{uuid}.json"))
+    s3_client.put_object(
+        Body=str(json.dumps(response)),
+        Bucket='results',
+        Key=os.path.join(day, f"{uuid}.json")
+    )
 
 
 if __name__ == '__main__':

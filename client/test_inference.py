@@ -1,10 +1,21 @@
+import time
+from datetime import datetime
+from random import shuffle
+
 import requests
 
+
+def chunkIt(seq, num):
+    avg = len(seq) / float(num)
+    out = []
+    last = 0.0
+    while last < len(seq):
+        out.append(seq[int(last):int(last + avg)])
+        last += avg
+    return out
+
+
 images = [
-    "https://hgtvhome.sndimg.com/content/dam/images/hgtv/fullset/2012/5/25/1/RWAP_pet-friendly-room-dog-window_s3x4.jpg.rend.hgtvcom.616.822.suffix/1400972675264.jpeg",
-    "https://notesfromadogwalker.files.wordpress.com/2013/06/birdie-fence.jpg",
-    "https://st.hzcdn.com/fimgs/b432b5db0a63935c_5230-w500-h375-b0-p0--.jpg",
-    "https://blog.healthypawspetinsurance.com/wp-content/uploads/Labrador_dog_pool_pond_backyard-compressor-e1492038155282.jpg",
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRpJqBcpvHQ5fm23kxNTY0Mj6DcyllTLcvpioKsE5AcHNx3Io5HfCUtcirBtWc3epHlMqs&usqp=CAU",
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_wMeyjHQEZBh6bCUpJgEtG5EhxX1TtRwyCA&usqp=CAU",
     "https://static.thebark.com/sites/default/files/content/article/full/dog_backyard_1.jpg",
@@ -36,36 +47,11 @@ images_hard = [
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQIXTRNIH75wvSYyPWk9-uTsVxEIe8IDygdOw&usqp=CAU",
 ]
 
-
-def chunkIt(seq, num):
-    avg = len(seq) / float(num)
-    out = []
-    last = 0.0
-    while last < len(seq):
-        out.append(seq[int(last):int(last + avg)])
-        last += avg
-    return out
-
-
-import datetime
-import time
-
-today = datetime.datetime.now()
-easy_dates = [today - datetime.timedelta(days=i) for i in range(2, 10, 1)][::-1]
-easy_chunks = chunkIt(images, len(easy_dates))
-hard_dates = [today - datetime.timedelta(days=1), today]
-hard_chunks = chunkIt(images_hard, len(hard_dates))
-
-for url_chunks, dates, in [(easy_chunks, easy_dates),
-                           (hard_chunks, hard_dates)]:
-    for idx, urls in enumerate(url_chunks):
-        date = dates[idx].strftime('%d-%m-%Y')
-        params = {'date': date}
-        for url in urls:
-            files = {'image': requests.get(url).content}
-            endpoint = "http://0.0.0.0:5000/predict"
-            r = requests.post(endpoint, files=files, params=params)
-            print(r.status_code)
-            print(r.json())
-        res = requests.post("http://0.0.0.0:5001/force-sample", params=params)
-        print(res.text)
+params = {'date': datetime.now().strftime('%d-%m-%Y')}
+images = images_hard + images
+shuffle(images)
+for idx, url in enumerate(images):
+    r = requests.post("http://0.0.0.0:5100/predict", files={'image': requests.get(url).content}, params=params)
+    res = requests.post("http://0.0.0.0:5000/force-sample", params=params)
+    print("sleeping")
+    time.sleep(30)

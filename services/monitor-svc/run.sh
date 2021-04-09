@@ -1,2 +1,2 @@
-python uploads.py &
-python service.py
+python -m monitor.sample &
+  python -m monitor.app
