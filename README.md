@@ -38,7 +38,7 @@ Starter code for monitoring production models with Labelbox & Grafana
 1. storage
     - Local deployment of s3 emulator to simplify deployment
 
-<img src="docs/design.png" height="384" >
+<img src="docs/design.png" width="512" >
 
 ## Setup
 
