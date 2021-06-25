@@ -4,7 +4,7 @@ import logging
 import json_logging
 import sys
 
-from monitor.settings import conf_file, default_access_key_id, default_access_key
+from monitor.settings import conf_file, DEFAULT_ACCESS_KEY_ID, DEFAULT_ACCESS_KEY
 
 if os.path.exists(conf_file):
     pass
@@ -12,8 +12,8 @@ if os.path.exists(conf_file):
 session = boto3.session.Session()
 s3_client = session.client(
     service_name='s3',
-    aws_access_key_id=default_access_key_id,
-    aws_secret_access_key=default_access_key,
+    aws_access_key_id=DEFAULT_ACCESS_KEY_ID,
+    aws_secret_access_key=DEFAULT_ACCESS_KEY,
     endpoint_url='http://storage:9000',
 )
 

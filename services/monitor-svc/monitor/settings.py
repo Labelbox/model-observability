@@ -18,5 +18,5 @@ PROJECT = client.get_project(project_conf['project_id'])
 DATASET = client.get_dataset(project_conf['dataset_id'])
 BBOX_FEATURE_SCHEMA_ID = project_conf['bbox_feature_schema_id']
 TEXT_FEATURE_SCHEMA_ID = project_conf['text_feature_schema_id']
-default_access_key_id = "AKIAIOSFODNN7EXAMPLE"
-default_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+DEFAULT_ACCESS_KEY_ID = "AKIAIOSFODNN7EXAMPLE"
+DEFAULT_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"

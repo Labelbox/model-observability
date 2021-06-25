@@ -91,9 +91,11 @@ def sample_training_data(date, target_examples=25):
             continue
         data_row = upload_image_to_labelbox(image_bytes, external_id)
         to_upload.append([data_row, json_payload, external_id])
+
     if not len(to_upload):
         logger.info(f"No examples to upload for date {date}")
         return 0
+
     logger.info(f"Uploading {len(to_upload)} examples for date {date}")
     upload_annotations(to_upload)
     return len(to_upload)

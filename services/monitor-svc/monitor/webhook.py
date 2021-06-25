@@ -24,11 +24,9 @@ def list_annotations(date, bucket_name="annotations"):
         s3_client.list_objects(Bucket=bucket_name, Prefix=date).get("Contents", [])
     )
 
-
 def daterange(start_date, end_date):
     for n in range(int((end_date - start_date).days)):
         yield start_date + timedelta(n)
-
 
 def normalize_bbox(bbox):
     return [

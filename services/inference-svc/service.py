@@ -71,7 +71,7 @@ def store_results(image, response, date_override=None):
     )
 
     s3_client.put_object(
-        Body=str(json.dumps(response)),
+        Body=str(json.dumps(prediction)),
         Bucket='results',
         Key=os.path.join(day, f"{uuid}.json")
     )
