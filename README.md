@@ -1,90 +1,77 @@
-# model-observability
-Track model performance over time using Observe
+# Machine Learning Observability
 
-| <img src="https://labelbox.com/blog/content/images/2021/02/logo-v4.svg" width="256" style="background-color:White;"> | <img src="https://www.observeinc.com/wp-content/themes/observe-rdc/theme/images/observe.jpg" width="256"> | 
-| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+<img src="https://labelbox.com/blog/content/images/2021/02/logo-v4.svg" width="256" style="background-color:White;">
 
 <br></br>
+
 ## Overview
+
+Starter code for monitoring production models with Labelbox & Grafana
+
 * This project demonstrates how to do the following:
-    1. Train a neural network using data from labelbox
-    2. Deploy the trained model
-    3. Monitor the model performance over time using Labelbox and Observe
-<br></br>
+    1. Train a neural network using data from Labelbox
+    2. Deploy the trained model with instrumentation to push data to Labelbox
+    3. Monitor the model performance over time using Labelbox
+   
 ## Components
-1. Training Code
-    - Use this to create a trained model
-2. inference-svc
-    - Service for predicting animal bounding boxes in images
-3. Oberserve-svc
-    - Uploads model inferences to labelbox
-    - Once inferences are labeled it computes metrics and logs them so observe can injest performance statistics
-4. Storage
+
+
+1. inference-svc
+    - Service for hosting the instrumented model
+2. monitor-svc
+    - Sends model inferences to Labelbox for Model Assisted Labeling
+    - Once an inference is labeled a webhook sends data to this service to computes metrics
+      - Metrics are then pushed to Influxdb for viewing on Grafana
+      - Predictions are pushed to Model Diagnostics for viewing
+3. 
+3. Storage
     - Local deployment of s3 emulator so that infrences, labels, and user requests can be persisted
-5. Deployment
-    - Contains all of the configuration for the minikube deployment
 
 <img src="images/design.png" height="384" >
 
+## Setup
 
-## Usage:
+Run the following code commands once
+* `make configure-labelbox`
+  - Create a config file used to parameterize the deployment (see services/monitor-svc/project_conf.json)
+* `make configure-storage`
+  - Creates the local storage directory structure under `./storage`
+    
+## Deploy
 
+We use `docker compose` to deploy the various components. We use [Ngrok](https://ngrok.com) to make the deployment available
+on your local machine to Labelbox webhooks.
 
-### Train
-1. Train a model
-    * Run the ETL: `make etl`
-        * This requires that you have access to a project with a class called animal and some associated labels
-        * Update etl.py to use your project id
-    * Train the model `make train`
-    * Create a servable `make export`
-    * The model artifacts are written to the `/tmp` dir by default.    
+Must have the following env vars set:
+  - `LABELBOX_API_KEY` : [Labelbox API Key](https://docs.labelbox.com/en/introduction/faq#how-do-i-create-an-api-key-)
+  - `NGROK_TOKEN` : Enables labelbox webhooks to make requests to deployments without public ip addresses 
 
-### Deployment
-1. If you have never run before run the following:
-    * `make configure-labelbox`
-        - Creates a new labelbox config. This is where the model feedback will be sent to (see services/monitor-svc/project_conf.json)
-    * `make configure-storage`
-        - Creates the local storage directory structure under `./storage`
-2. Deploy to minikube
-    * Must have the following env vars set:
-        - `LABELBOX_API_KEY` : Labelbox api key (https://docs.labelbox.com/en/introduction/faq#how-do-i-create-an-api-key-)
-        - `NGROK_TOKEN` : Enables labelbox webhooks to make requests to deployments without public ip addresses (https://ngrok.com)
-        - `OBSERVE_CUSTOMER_ID` and `OBSERVE_TOKEN` used to aggregate both machine and model metrics (https://www.observeinc.com)
-    * `make deploy`
-        - Runs the services.
+Run `make deploy`
 
-### Client
-
-* To produce metrics we can us the code in the `client` directory
-* This simulates customer usage. 
-    * Customers can post images of animals and the model will predict where the animals are in the image
-
-* Note that the first request might fail due to a timeout since we did not add warm up to the tf-server.
-
-### Labeling
-
-* Once the service is up and running images posted to inference-svc and associated inferences will be uploaded to labelbox for labeling
-* Click `Start Labeling` and label all of the images in the queue
-* Once an image is reviewed and given a thumbs up, it will be sent back to monitor-svc, metrics will be computed, and the result will be logged out
-* Watch the logs to see the metrics get calculated `kubectl logs svc/monitor-svc --follow`
+## Run
 
 
-### Metrics
-* Make sure you made some requests and labeled some images first. You can use the code under the `clien` dir
-* Go to <your account number>.observeinc.com
-* I used a script under deployment/metrics-query.opal to create a metrics dataset
-* The rest of the instructions can be found here (https://docs.observeinc.com/en/latest/content/metrics/MetricsIntro.html)
-* Here are some cool charts that I made:
+### Predict
+
+Now we can send predictions to the model. See `scripts/sample_inference.py` for an example of sending predictions.
+
+ > The first request might fail due to a timeout since we did not add warm up to the tf-server.
+
+### Label
+
+Predictions are sampled and uploaded to the Labelbox project created for the model. [Go to that project and begin labeling](https://app.labelbox.com/projects). 
+
+Once an image has been labeled, **giving the label a thumbs up in review mode publish data** to `monitor-svc`.
+
+### Observe
+
+We use Grafana and InfluxDB for tracking and viewing metrics. If you ran this on your local machine, navigate to 
+http://localhost:3005.
+
+Navigate to http://localhost:3005/dashboard/import to import our pre-built dashboard. The pre-built dashboard can be
+found under `services/grafana/dashboards/model-monitoring.json`.
+
+<img src="docs/grafana.png" height="384" >
 
 
-<img src="images/observe-dashboard.png" height="512" >
 
-### Productionizing
-- This is a POC with most of what users need to build a production system. 
-* Remove the local s3 deployment in favor of a more permanent storage solution
-* Needs test cases and error handling
-* NGROK needs to be removed and use a public endpoint
-* Model files will need to be stored somewhere other than the host tmp directory.
-* The way that dates are kept track of is not ideal.
-* Add a warmup file for the tensorflow server
-* The sampling logic needs to be improved for production. 
