@@ -45,7 +45,6 @@ def health_check():
 
 @app.route("/review", methods=["POST"])
 def process_webhook():
-    raise Exception(".....")
     payload = request.data
     verify_webhook(payload)
     return process_review_webhook(payload, client, influx_client)
