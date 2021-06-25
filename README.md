@@ -1,6 +1,10 @@
 # Machine Learning Observability
 
+<br></br>
+
 <img src="https://labelbox.com/blog/content/images/2021/02/logo-v4.svg" width="256" style="background-color:White;">
+
+**Labelbox** is the world’s leading training data platform for machine learning applications.
 
 <br></br>
 
@@ -17,17 +21,24 @@ Starter code for monitoring production models with Labelbox & Grafana
 
 
 1. inference-svc
-    - Service for hosting the instrumented model
-2. monitor-svc
+    - Service for hosting the instrumented model client
+    - Routes data to labelbox
+1. tensorflow-svc
+    - Hosts the tfhub model
+1. monitor-svc
     - Sends model inferences to Labelbox for Model Assisted Labeling
     - Once an inference is labeled a webhook sends data to this service to computes metrics
       - Metrics are then pushed to Influxdb for viewing on Grafana
       - Predictions are pushed to Model Diagnostics for viewing
-3. 
-3. Storage
-    - Local deployment of s3 emulator so that infrences, labels, and user requests can be persisted
+1. grafana
+   - Metric dashboarding tool
+   - Login: admin, pass
+1. influxdb
+   - Timeseries metrics database used for storing data for grafana
+1. storage
+    - Local deployment of s3 emulator to simplify deployment
 
-<img src="images/design.png" height="384" >
+<img src="docs/design.png" height="384" >
 
 ## Setup
 
