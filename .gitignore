@@ -1,0 +1,3 @@
+.env
+services/monitor-svc/project_conf.json
+.python-version
