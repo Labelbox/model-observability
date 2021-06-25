@@ -7,9 +7,12 @@ from uuid import uuid4
 import flask
 from PIL import Image
 from flask import request
-from shared import get_logger, s3_client
 
-from tf_client import Predictor
+from resources.settings import KEEP_PROB
+from resources.common import get_logger, s3_client
+from inference_svc.tf_client import Predictor
+import random
+from inference_svc.upload import upload_annotations
 
 predictor = Predictor()
 
@@ -29,7 +32,7 @@ def predict_sync():
             image_bytes = flask.request.files['image'].read()
 
     # Fixed image size.
-    image = Image.open(BytesIO(image_bytes)).resize((640, 640))
+    image = Image.open(BytesIO(image_bytes)).resize((320, 320))
     boxes, scores, class_names = predictor.predict(image)
 
     response = {
@@ -37,7 +40,8 @@ def predict_sync():
         'scores': scores.tolist(),
         'class_names': class_names
     }
-    store_results(image, response.copy(), request.args.get('date'))
+    if random.random() < KEEP_PROB:
+        store_results(image, response.copy(), request.args.get('date'))
     logger.info({"objects_detected": len(boxes)})
     return response
 
@@ -47,13 +51,11 @@ def store_results(image, response, date_override=None):
     timestamp = datetime.now()
     # Allow user to simulate different dates for testing
     # In prod we wouldn't override the date
-    if date_override is None:
-        day = timestamp.strftime("%d-%m-%Y")
-    else:
-        day = date_override
+    day = date_override if date_override else timestamp.strftime("%d-%m-%Y")
 
     image_bytes = BytesIO()
     image.save(image_bytes, format="JPEG")
+
     s3_client.put_object(
         Body=image_bytes.getvalue(),
         Bucket='images',
@@ -70,11 +72,22 @@ def store_results(image, response, date_override=None):
         }
     )
 
+    external_id = os.path.join(day, uuid)
+
     s3_client.put_object(
         Body=str(json.dumps(response)),
         Bucket='results',
-        Key=os.path.join(day, f"{uuid}.json")
+        Key=f"{external_id}.json"
     )
+    upload_annotations(
+        image_bytes.getvalue(),
+        external_id,
+        response['boxes'],
+        response['scores'],
+        image.size[1],
+        image.size[0]
+    )
+
 
 
 if __name__ == '__main__':

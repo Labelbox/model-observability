@@ -10,7 +10,6 @@ RUN pip install tensorflow-serving-api \
                 json_logging
 
 
-WORKDIR /usr/src/inference-svc
-COPY ./inference-svc .
-COPY shared.py .
-CMD ["python", "./service.py"]
+WORKDIR /usr/src/
+COPY . .
+CMD ["python","-m", "inference_svc.service"]

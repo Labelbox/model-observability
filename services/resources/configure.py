@@ -3,7 +3,7 @@ import json
 from labelbox import LabelingFrontend, Client, Webhook
 from labelbox.schema.ontology import OntologyBuilder, Tool, Classification
 
-from monitor.settings import secret
+from resources.secrets import secret
 
 
 def configure_project():
@@ -43,7 +43,7 @@ def configure_project():
             .feature_schema_id,
     }
 
-    with open("project_conf.json", "w") as file:
+    with open("resources/project_conf.json", "w") as file:
         file.write(json.dumps(conf))
 
     Webhook.create(
