@@ -1,24 +1,12 @@
-import tensorflow as tf
+import grpc
 import numpy as np
 from tensorflow_serving.apis import predict_pb2
 from tensorflow_serving.apis import prediction_service_pb2_grpc
-import grpc
+import tensorflow as tf
 
-animal_classes = {
-    16 : 'bird',
-    17: 'cat',
-    18: 'dog',
-    19: 'horse',
-    20: 'sheep',
-    21: 'cow',
-    22: 'elephant',
-    23: 'bear',
-    24: 'zebra',
-    25: 'giraffe'
-}
+from resources.settings import MODEL_CLASS_MAPPINGS
 
 class Predictor:
-
     def __init__(self, host="inference-server", port=8500):
         addr = f"{host}:{port}"
         channel = grpc.insecure_channel(addr)
@@ -51,7 +39,7 @@ class Predictor:
         boxes = np.squeeze(boxes, axis=(0,))[:num_detections]
         detection_classes = np.squeeze(detection_classes, axis=(0,))[:num_detections]
 
-        animal_indices = np.isin(detection_classes, list(animal_classes.keys()))
+        animal_indices = np.isin(detection_classes, list(MODEL_CLASS_MAPPINGS.keys()))
         boxes = boxes[animal_indices]
         scores = scores[animal_indices]
 

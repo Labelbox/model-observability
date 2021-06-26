@@ -4,15 +4,16 @@ from datetime import datetime
 from io import BytesIO
 from uuid import uuid4
 
+import random
+
 import flask
-from PIL import Image
 from flask import request
+from PIL import Image
 
 from resources.settings import KEEP_PROB
 from resources.common import get_logger, s3_client
-from inference_svc.tf_client import Predictor
-import random
-from inference_svc.upload import upload_annotations
+from inference_svc.inference.tf_client import Predictor
+from inference_svc.inference.upload import upload_annotations
 
 predictor = Predictor()
 

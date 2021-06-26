@@ -1,19 +1,7 @@
 import time
 from datetime import datetime
 from random import shuffle
-
 import requests
-
-
-def chunkIt(seq, num):
-    avg = len(seq) / float(num)
-    out = []
-    last = 0.0
-    while last < len(seq):
-        out.append(seq[int(last):int(last + avg)])
-        last += avg
-    return out
-
 
 images = [
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRpJqBcpvHQ5fm23kxNTY0Mj6DcyllTLcvpioKsE5AcHNx3Io5HfCUtcirBtWc3epHlMqs&usqp=CAU",
@@ -30,10 +18,7 @@ images = [
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQVUgGcotAtf2A_CW8hDmu5PEqOxQLdUzG1TQ&usqp=CAU",
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ7dbu6rpb52F5To5sNGRPCcSQOo57JAdd1YA&usqp=CAU",
     "https://nextluxury.com/wp-content/uploads/rustic-salvaged-wood-pallet-dog-fence-ideas.jpg",
-    "https://i.ytimg.com/vi/J_WyWwRYAQ4/maxresdefault.jpg"
-]
-
-images_hard = [
+    "https://i.ytimg.com/vi/J_WyWwRYAQ4/maxresdefault.jpg",
     "https://iheartdogs.com/wp-content/uploads/2018/06/backyard-dangers-for-dogs.png",
     "https://cdn.shopify.com/s/files/1/0014/5060/6701/files/news_dog_run_ideas_cobblestone_accented_pet_run.jpg?1728432",
     "https://i.pinimg.com/originals/fa/8d/3b/fa8d3be0c3c13701c24dc0fe2f40c615.jpg",
@@ -48,9 +33,8 @@ images_hard = [
 ]
 
 params = {'date': datetime.now().strftime('%d-%m-%Y')}
-images = images_hard + images
 shuffle(images)
 for idx, url in enumerate(images):
+    print(f"Making request {idx}")
     r = requests.post("http://0.0.0.0:5100/predict", files={'image': requests.get(url).content}, params=params)
-    print("sleeping")
-    time.sleep(5)
+    time.sleep(3)

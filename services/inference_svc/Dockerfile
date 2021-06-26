@@ -12,4 +12,4 @@ RUN pip install tensorflow-serving-api \
 
 WORKDIR /usr/src/
 COPY . .
-CMD ["python","-m", "inference_svc.service"]
+CMD python -m inference_svc.inference.service

@@ -23,3 +23,15 @@ TEXT_FEATURE_SCHEMA_ID = project_conf['text_feature_schema_id']
 # Save all for now
 KEEP_PROB = 1.0
 
+MODEL_CLASS_MAPPINGS = {
+    16 : 'bird',
+    17: 'cat',
+    18: 'dog',
+    19: 'horse',
+    20: 'sheep',
+    21: 'cow',
+    22: 'elephant',
+    23: 'bear',
+    24: 'zebra',
+    25: 'giraffe'
+}
