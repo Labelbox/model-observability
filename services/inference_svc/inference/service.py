@@ -62,25 +62,8 @@ def store_results(image, response, date_override=None):
         Bucket='images',
         Key=os.path.join(day, f"{uuid}.jpg")
     )
-
-    response.update(
-        {
-            'timestamp': str(timestamp),
-            'image_h': image.size[1],
-            'image_w': image.size[0],
-            'model_name': 'animal-detector',
-            'model_version': '0.0.1'
-        }
-    )
-
     external_id = os.path.join(day, uuid)
-
-    s3_client.put_object(
-        Body=str(json.dumps(response)),
-        Bucket='results',
-        Key=f"{external_id}.json"
-    )
-    upload_annotations(
+    ndjson_annotions = upload_annotations(
         image_bytes.getvalue(),
         external_id,
         response['boxes'],
@@ -89,6 +72,21 @@ def store_results(image, response, date_override=None):
         image.size[0]
     )
 
+    response.update(
+        {
+            'timestamp': str(timestamp),
+            'image_h': image.size[1],
+            'image_w': image.size[0],
+            'ndjson_annotions' : ndjson_annotions,
+            'model_name': 'animal-detector',
+            'model_version': '0.0.1'
+        }
+    )
+    s3_client.put_object(
+        Body=str(json.dumps(response)),
+        Bucket='results',
+        Key=f"{external_id}.json"
+    )
 
 
 if __name__ == '__main__':

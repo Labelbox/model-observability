@@ -1,7 +1,9 @@
 import json
 import logging
 import os
+import time
 import subprocess
+from uuid import uuid4
 import time
 from datetime import datetime, timedelta
 
@@ -11,8 +13,9 @@ from labelbox import Label
 from src.bounding_box import BBFormat, BoundingBox
 from src.evaluators.coco_evaluator import get_coco_summary
 
+
 from resources.common import s3_client
-from resources.settings import PROJECT
+from resources.settings import PROJECT, MODEL_RUN
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -56,7 +59,6 @@ def get_summary(preds, gts):
     result["min_score"] = scores.min()
     result["predictions"] = len(preds)
     result["labels"] = len(gts)
-
     return result
 
 
@@ -141,9 +143,17 @@ def process_review_webhook(payload, lbclient, influx_client):
         }
     ]
     influx_client.write_points(json_body)
-
-    logger.info("success")
-    # TODO: Upload to MEA HERE!!!!!
+    MODEL_RUN.upsert_labels([label.uid])
+    time.sleep(1) # Wait for upload to complete. This will be a task soon.
+    metric = [{
+        "uuid" : str(uuid4()),
+        "dataRow" : {
+            "id": data_row.uid,
+        },
+        "metricValue" : summary['AP']
+        }
+    ]
+    MODEL_RUN.add_predictions(f'mea-import-{uuid4()}', inference['ndjson_annotions'] + metric)
     return "success"
 
 

@@ -17,6 +17,9 @@ INFLUXDB_PORT = os.environ.get("INFLUXDB_PORT", 8086)
 
 PROJECT = client.get_project(project_conf['project_id'])
 DATASET = client.get_dataset(project_conf['dataset_id'])
+MODEL = client.get_model(project_conf['model_id'])
+# There should only be one model
+MODEL_RUN = next(MODEL.model_runs())
 BBOX_FEATURE_SCHEMA_ID = project_conf['bbox_feature_schema_id']
 TEXT_FEATURE_SCHEMA_ID = project_conf['text_feature_schema_id']
 

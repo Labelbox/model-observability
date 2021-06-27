@@ -28,6 +28,7 @@ def upload_annotations(image_bytes, external_id, boxes, scores, image_h, image_w
         PROJECT.upload_annotations(
             name=f"upload-job-{uuid4()}", annotations=ndjsons, validate=False
         )
+    return ndjsons
 
 def _upload_image_to_labelbox(image_bytes, external_id):
     uri = client.upload_data(content=image_bytes, filename=external_id)

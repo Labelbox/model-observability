@@ -1,4 +1,5 @@
 import json
+from uuid import uuid4
 
 from labelbox import LabelingFrontend, Client, Webhook
 from labelbox.schema.ontology import OntologyBuilder, Tool, Classification
@@ -34,6 +35,10 @@ def configure_project():
     project.enable_model_assisted_labeling()
     ontology = ontology_builder.from_project(project)
 
+    model_name = f"observe-model-{uuid4()}"
+    model = client.create_model(name = model_name, ontology_id = project.ontology().uid)
+    model.create_model_run('run-1')
+
     conf = {
         "project_id": project.uid,
         "dataset_id": dataset.uid,
@@ -41,6 +46,7 @@ def configure_project():
         "text_feature_schema_id": ontology.tools[0]
             .classifications[0]
             .feature_schema_id,
+        "model_id" : model.uid
     }
 
     with open("resources/project_conf.json", "w") as file:
@@ -53,6 +59,8 @@ def configure_project():
         secret=secret.decode(),
         project=project,
     )
+
+
 
 
 if __name__ == "__main__":
