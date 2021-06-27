@@ -1,10 +1,8 @@
 import hashlib
 import hmac
-
 from flask import request, Flask
 from influxdb import InfluxDBClient
 from labelbox import Client
-
 
 from resources.common import get_logger
 from resources.settings import (
@@ -15,7 +13,6 @@ from resources.settings import (
     INFLUXDB_NAME
 )
 from resources.secrets import secret
-
 from monitor_svc.monitor.webhook import (
     process_review_webhook,
     init_ngrok,
