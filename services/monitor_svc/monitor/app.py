@@ -2,7 +2,6 @@ import hashlib
 import hmac
 from flask import request, Flask
 from influxdb import InfluxDBClient
-from labelbox import Client
 
 from resources.common import get_logger
 from resources.settings import (
@@ -10,7 +9,9 @@ from resources.settings import (
     INFLUXDB_PORT,
     INFLUXDB_USR,
     INFLUXDB_PAS,
-    INFLUXDB_NAME
+    INFLUXDB_NAME,
+    WEBHOOK_HOST,
+    client
 )
 from resources.secrets import secret
 from monitor_svc.monitor.webhook import (
@@ -19,7 +20,6 @@ from monitor_svc.monitor.webhook import (
     update_public_url
 )
 
-client = Client()
 
 app = Flask(__name__)
 logger = get_logger(app, "metrics-logger")
@@ -59,9 +59,8 @@ def verify_webhook(payload):
 
 def main():
     init_ngrok()
-    url = update_public_url()
+    url = update_public_url(WEBHOOK_HOST)
     logger.info(url)
-    logger.info("Started...")
     app.run(host="0.0.0.0", threaded=True, debug=True, use_reloader=False)
 
 

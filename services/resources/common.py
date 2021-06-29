@@ -4,11 +4,7 @@ import logging
 import json_logging
 import sys
 
-from resources.settings import conf_file
 from resources.secrets import default_access_key_id, default_access_key
-
-if os.path.exists(conf_file):
-    pass
 
 session = boto3.session.Session()
 s3_client = session.client(

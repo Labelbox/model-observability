@@ -40,9 +40,9 @@ services:
   inference-server:
     image: tensorflow/serving:latest
     environment:
-      - MODEL_NAME=animaldet
+      - MODEL_NAME=detmodel
     volumes:
-      - /tmp/servable/saved_model:/models/animaldet
+      - /tmp/servable/saved_model:/models/detmodel
     networks:
       - back-tier
     ports:
