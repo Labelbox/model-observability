@@ -11,8 +11,8 @@ from labelbox import Label
 from src.bounding_box import BBFormat, BoundingBox
 from src.evaluators.coco_evaluator import get_coco_summary
 
-from monitor.common import s3_client
-from monitor.settings import PROJECT
+from resources.common import s3_client
+from resources.settings import PROJECT
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -91,6 +91,7 @@ def construct_boxes(inference, annotation, name="exp_name"):
 
 def process_review_webhook(payload, lbclient, influx_client):
     """"""
+    logger.info("webhook recieved")
     review = json.loads(payload.decode("utf8"))
     label = lbclient._get_single(Label, review["label"]["id"])
     data_row = label.data_row()
@@ -140,7 +141,9 @@ def process_review_webhook(payload, lbclient, influx_client):
         }
     ]
     influx_client.write_points(json_body)
+
     logger.info("success")
+    # TODO: Upload to MEA HERE!!!!!
     return "success"
 
 

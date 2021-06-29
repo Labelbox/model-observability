@@ -7,15 +7,15 @@ volumes:
   grafana-storage:
 
 services:
-  monitor-svc:
+  monitor_svc:
     build:
       context: services
-      dockerfile: monitor-svc/Dockerfile
+      dockerfile: monitor_svc/Dockerfile
     ports:
       - "5000:5000"
     depends_on:
       - influxdb
-      - inference-svc
+      - inference_svc
     environment:
       - NGROK_TOKEN
       - LABELBOX_API_KEY
@@ -24,10 +24,10 @@ services:
     networks:
       - back-tier
       - front-tier
-  inference-svc:
+  inference_svc:
     build:
       context: services
-      dockerfile: inference-svc/Dockerfile
+      dockerfile: inference_svc/Dockerfile
     ports:
       - "5100:5100"
     networks:
@@ -35,6 +35,8 @@ services:
       - front-tier
     depends_on:
       - inference-server
+    environment:
+      - LABELBOX_API_KEY
   inference-server:
     image: tensorflow/serving:latest
     environment:
@@ -43,10 +45,13 @@ services:
       - /tmp/servable/saved_model:/models/animaldet
     networks:
       - back-tier
+    ports:
+      - '8500:8500'
+      - '8501:8501'
   storage:
     build:
       context: services
-      dockerfile: storage-svc/Dockerfile
+      dockerfile: storage_svc/Dockerfile
     volumes:
       - ./storage:/host/storage
     networks:

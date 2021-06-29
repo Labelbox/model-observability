@@ -5,16 +5,22 @@ from flask import request, Flask
 from influxdb import InfluxDBClient
 from labelbox import Client
 
-from monitor.common import get_logger
-from monitor.settings import (
+
+from resources.common import get_logger
+from resources.settings import (
     INFLUXDB_HOST,
     INFLUXDB_PORT,
     INFLUXDB_USR,
     INFLUXDB_PAS,
-    INFLUXDB_NAME, secret,
+    INFLUXDB_NAME
 )
-from monitor.sample import sample_training_data
-from monitor.webhook import process_review_webhook, init_ngrok, update_public_url
+from resources.secrets import secret
+
+from monitor_svc.monitor.webhook import (
+    process_review_webhook,
+    init_ngrok,
+    update_public_url
+)
 
 client = Client()
 
@@ -36,13 +42,6 @@ influx_client = make_influx_db_client()
 @app.route("/")
 def health_check():
     return "alive!"
-
-
-@app.route("/force-sample", methods=["POST"])
-def force_sample():
-    date = request.args.get("date")
-    return f"N samples {sample_training_data(date)} for date {date}"
-
 
 @app.route("/review", methods=["POST"])
 def process_webhook():

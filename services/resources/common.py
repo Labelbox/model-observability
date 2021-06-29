@@ -4,7 +4,8 @@ import logging
 import json_logging
 import sys
 
-from monitor.settings import conf_file, default_access_key_id, default_access_key
+from resources.settings import conf_file
+from resources.secrets import default_access_key_id, default_access_key
 
 if os.path.exists(conf_file):
     pass
@@ -16,7 +17,6 @@ s3_client = session.client(
     aws_secret_access_key=default_access_key,
     endpoint_url='http://storage:9000',
 )
-
 
 def get_logger(app, name):
     logging.basicConfig()

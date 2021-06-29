@@ -20,6 +20,6 @@ RUN pip install tensorflow-serving-api \
                 influxdb \
                 git+https://github.com/rafaelpadilla/review_object_detection_metrics.git
 
-WORKDIR /usr/src/monitor-svc/
-COPY ./monitor-svc .
-CMD ./run.sh
+WORKDIR /usr/src/
+COPY . .
+CMD python -m monitor_svc.monitor.app
