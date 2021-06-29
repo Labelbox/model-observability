@@ -23,40 +23,41 @@ def configure_project():
     dataset = client.create_dataset(name="observability-dataset")
     project.datasets.connect(dataset)
 
-    ontology_builder = OntologyBuilder(
-        tools=[
-            Tool(
-                tool=Tool.Type.BBOX,
-                name=name,
-                classifications=[
-                    Classification(
-                        class_type=Classification.Type.TEXT, instructions="confidence"
-                    )
-                ],
-            )
-        for name in MODEL_CLASS_MAPPINGS.values()]
-    )
+    ontology_builder = OntologyBuilder(tools=[
+        Tool(
+            tool=Tool.Type.BBOX,
+            name=name,
+            classifications=[
+                Classification(class_type=Classification.Type.TEXT,
+                               instructions="confidence")
+            ],
+        ) for name in MODEL_CLASS_MAPPINGS.values()
+    ])
     editor = next(
-        client.get_labeling_frontends(where=LabelingFrontend.name == "editor")
-    )
+        client.get_labeling_frontends(where=LabelingFrontend.name == "editor"))
     project.setup(editor, ontology_builder.asdict())
     project.enable_model_assisted_labeling()
     ontology = ontology_builder.from_project(project)
 
     model_name = f"observability-model-{uuid4()}"
-    model = client.create_model(name = model_name, ontology_id = project.ontology().uid)
+    model = client.create_model(name=model_name,
+                                ontology_id=project.ontology().uid)
     model.create_model_run('production-data')
 
     with open("resources/project_conf.json", "w") as file:
-        file.write(json.dumps({
-            "project_id": project.uid,
-            "dataset_id": dataset.uid,
-            "bbox_feature_schema_id": ontology.tools[0].feature_schema_id,
-            "text_feature_schema_id": ontology.tools[0]
-                .classifications[0]
-                .feature_schema_id,
-            "model_id" : model.uid
-        }))
+        file.write(
+            json.dumps({
+                "project_id":
+                    project.uid,
+                "dataset_id":
+                    dataset.uid,
+                "bbox_feature_schema_id":
+                    ontology.tools[0].feature_schema_id,
+                "text_feature_schema_id":
+                    ontology.tools[0].classifications[0].feature_schema_id,
+                "model_id":
+                    model.uid
+            }))
 
     Webhook.create(
         client,
@@ -65,8 +66,6 @@ def configure_project():
         secret=secret.decode(),
         project=project,
     )
-
-
 
 
 if __name__ == "__main__":

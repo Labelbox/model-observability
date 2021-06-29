@@ -14,6 +14,7 @@ s3_client = session.client(
     endpoint_url='http://storage:9000',
 )
 
+
 def get_logger(app, name):
     logging.basicConfig()
     json_logging.init_flask(enable_json=True)

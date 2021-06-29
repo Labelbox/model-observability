@@ -8,7 +8,9 @@ import tensorflow as tf
 
 from resources.settings import MODEL_CLASS_MAPPINGS
 
+
 class Predictor:
+
     def __init__(self, host="inference-server", port=8500):
         addr = f"{host}:{port}"
         channel = grpc.insecure_channel(addr)
@@ -23,7 +25,9 @@ class Predictor:
         return np.reshape(
             arr, tuple((int(dim.size) for dim in result.tensor_shape.dim)))
 
-    def predict(self, image: np.ndarray, min_score=0.5) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+    def predict(self,
+                image: np.ndarray,
+                min_score=0.5) -> Tuple[np.ndarray, np.ndarray, List[str]]:
         """
         Makes a request to the tensorflow server.
         Processes the result:
@@ -33,11 +37,11 @@ class Predictor:
         """
         image = np.expand_dims(image, axis=0)
         self.request.inputs['input_tensor'].CopyFrom(
-            tf.make_tensor_proto(image)
-        )
+            tf.make_tensor_proto(image))
         result = self.stub.Predict(self.request, 30.0)  # 30 second timeout
         scores, boxes, detection_classes = self.process_predictions(result)
-        valid_indices = np.isin(detection_classes, list(MODEL_CLASS_MAPPINGS.keys()))
+        valid_indices = np.isin(detection_classes,
+                                list(MODEL_CLASS_MAPPINGS.keys()))
         boxes = boxes[valid_indices]
         scores = scores[valid_indices]
         class_indices = detection_classes[valid_indices]
@@ -48,8 +52,9 @@ class Predictor:
         class_names = [MODEL_CLASS_MAPPINGS[idx] for idx in class_indices]
         return boxes, scores, class_names
 
-
-    def process_predictions(self, result : predict_pb2.PredictResponse) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def process_predictions(
+        self, result: predict_pb2.PredictResponse
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Converts a PredictResponse into numpy arrays
         """
@@ -61,11 +66,12 @@ class Predictor:
         num_detections = np.squeeze(num_detections.astype(np.int32), axis=(0,))
         scores = np.squeeze(scores, axis=(0,))[:num_detections]
         boxes = np.squeeze(boxes, axis=(0,))[:num_detections]
-        detection_classes = np.squeeze(detection_classes, axis=(0,))[:num_detections]
+        detection_classes = np.squeeze(detection_classes,
+                                       axis=(0,))[:num_detections]
         return scores, boxes, detection_classes
 
 
 if __name__ == '__main__':
     # Test case for calling the tensorflow server
-    predictor = Predictor(host = "localhost")
+    predictor = Predictor(host="localhost")
     predictor.predict(np.random.random((320, 320, 3)).astype(np.uint8))

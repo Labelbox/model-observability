@@ -3,7 +3,6 @@ import os
 
 from labelbox import Client
 
-
 conf_file = "resources/project_conf.json"
 client = Client()
 
@@ -30,12 +29,9 @@ WEBHOOK_HOST = None
 # Save all for now
 KEEP_PROB = 1.0
 
-MODEL_CLASS_MAPPINGS = {
-    9: 'boat'
-}
+MODEL_CLASS_MAPPINGS = {9: 'boat'}
 
 MODEL_NAME = "boat-detector"
 MODEL_VERSION = "0.0.1"
 IMAGE_H = 320
 IMAGE_W = 320
-

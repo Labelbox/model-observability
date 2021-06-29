@@ -32,10 +32,12 @@ def update_public_url(webhook_host: Optional[str]) -> str:
     # We need to update the url in labelbox each time we start the server since it changes when using ngrok
     if not webhook_host:
         res = requests.get("http://localhost:4040/api/tunnels")
-        assert (
-                res.status_code == 200
-        ), f"ngrok probably isn't running. {res.status_code}, {res.text}"
-        tunnel = [t for t in res.json()["tunnels"] if t["config"]["addr"].split(":")[-1] == str(5000)]
+        assert (res.status_code == 200
+               ), f"ngrok probably isn't running. {res.status_code}, {res.text}"
+        tunnel = [
+            t for t in res.json()["tunnels"]
+            if t["config"]["addr"].split(":")[-1] == str(5000)
+        ]
         webhook_host = tunnel[0]["public_url"]
     logger.info(webhook_host)
     webhook = next(PROJECT.webhooks())
@@ -43,7 +45,8 @@ def update_public_url(webhook_host: Optional[str]) -> str:
     return webhook_host
 
 
-def process_review_webhook(payload : Dict[str, Any], lbclient : Client, influx_client : InfluxDBClient) -> str:
+def process_review_webhook(payload: Dict[str, Any], lbclient: Client,
+                           influx_client: InfluxDBClient) -> str:
     """
     This is the logic that is triggered each time a webhook event occurs.
         - Parse the webhook results to use as the annotation
@@ -68,50 +71,56 @@ def process_review_webhook(payload : Dict[str, Any], lbclient : Client, influx_c
     write_to_mea(label, data_row, json_label, inference)
     return "success"
 
+
 def fetch_inference(data_row: DataRow) -> Dict[str, Any]:
     """ Fetch model inference from s3 for a given data row """
     return json.loads(
-        s3_client.get_object(
-            Bucket="results",
-            Key=f"{data_row.external_id}.json")
-        ["Body"].read()
-    )
+        s3_client.get_object(Bucket="results",
+                             Key=f"{data_row.external_id}.json")["Body"].read())
 
-def write_to_mea(label : Label, data_row : DataRow, json_label: Dict[str, Any], inference: Dict[str, Any]) -> None:
+
+def write_to_mea(label: Label, data_row: DataRow, json_label: Dict[str, Any],
+                 inference: Dict[str, Any]) -> None:
     """ Add the label and prediction to the model run """
     MODEL_RUN.upsert_labels([label.uid])
-    time.sleep(1) # Wait for upload to complete. This will be a task that we can wait on soon.
-    metric = [datarow_miou({
-        'DataRow ID' : data_row.uid,
-        'Label' : json_label
-    }, inference['ndjson_annotions'])]
-    MODEL_RUN.add_predictions(f'mea-import-{uuid4()}', inference['ndjson_annotions'] + metric)
-
-
-def write_to_influx(influx_client: InfluxDBClient, inference : Dict[str, Any], review : Dict[str, Any], data_row : DataRow, summary: Dict[str, Any]) -> None:
-    """ Save the stats to influx db """
-    json_body = [
-        {
-            "measurement": "model-stats",
-            "tags": {
-                "model_name": inference["model_name"],
-                "model_version": inference["model_version"],
-            },
-            "time": inference["timestamp"],
-            "fields": {
-                **summary,
-                **{
-                    "review_score": review["score"],
-                    "label_id": review["label"]["id"],
-                    "external_id": data_row.external_id,
-                    "datarow_link": f"https://app.labelbox.com/dataset/{data_row.dataset().uid}/{data_row.uid}",
-                    "image_link": data_row.row_data,
-
-                },
-            },
-        }
+    time.sleep(
+        1
+    )  # Wait for upload to complete. This will be a task that we can wait on soon.
+    metric = [
+        datarow_miou({
+            'DataRow ID': data_row.uid,
+            'Label': json_label
+        }, inference['ndjson_annotions'])
     ]
+    MODEL_RUN.add_predictions(f'mea-import-{uuid4()}',
+                              inference['ndjson_annotions'] + metric)
+
+
+def write_to_influx(influx_client: InfluxDBClient, inference: Dict[str, Any],
+                    review: Dict[str, Any], data_row: DataRow,
+                    summary: Dict[str, Any]) -> None:
+    """ Save the stats to influx db """
+    json_body = [{
+        "measurement": "model-stats",
+        "tags": {
+            "model_name": inference["model_name"],
+            "model_version": inference["model_version"],
+        },
+        "time": inference["timestamp"],
+        "fields": {
+            **summary,
+            **{
+                "review_score":
+                    review["score"],
+                "label_id":
+                    review["label"]["id"],
+                "external_id":
+                    data_row.external_id,
+                "datarow_link":
+                    f"https://app.labelbox.com/dataset/{data_row.dataset().uid}/{data_row.uid}",
+                "image_link":
+                    data_row.row_data,
+            },
+        },
+    }]
     influx_client.write_points(json_body)
-
-
-
