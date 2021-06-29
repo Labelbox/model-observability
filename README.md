@@ -81,6 +81,8 @@ Once an image has been labeled, **giving the label a thumbs up in review mode pu
 We use Grafana and InfluxDB for tracking and viewing metrics. If you ran this on your local machine, navigate to
 http://localhost:3005.
 
+To login use the username and password configured in the docker-compose file. By default the username is `admin` and the password is `pass`.
+
 Navigate to http://localhost:3005/dashboard/import to import our pre-built dashboard. The pre-built dashboard can be
 found under `services/grafana/dashboards/model-monitoring.json`.
 
