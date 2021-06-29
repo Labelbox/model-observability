@@ -12,7 +12,7 @@ RUN pip install tensorflow-serving-api \
                 numpy \
                 matplotlib \
                 flask \
-                labelbox \
+                labelbox==2.7b1 \
                 boto3 \
                 opencv-python \
                 json-logging \

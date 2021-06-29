@@ -16,7 +16,7 @@ Starter code for monitoring production models with Labelbox & Grafana
     1. Train a neural network using data from Labelbox
     2. Deploy the trained model with instrumentation to push data to Labelbox
     3. Monitor the model performance over time using Labelbox
-   
+
 ## Components
 
 
@@ -43,11 +43,13 @@ Starter code for monitoring production models with Labelbox & Grafana
 ## Setup
 
 Run the following code commands once
+* `make download-model`
+  - Downloads a tfhub model
 * `make configure-labelbox`
-  - Create a config file used to parameterize the deployment (see services/monitor-svc/project_conf.json)
+  - Create a config file used to parameterize the deployment (see services/monitor-svc/labelbox_conf.json)
 * `make configure-storage`
   - Creates the local storage directory structure under `./storage`
-    
+
 ## Deploy
 
 We use `docker compose` to deploy the various components. We use [Ngrok](https://ngrok.com) to make the deployment available
@@ -55,7 +57,7 @@ on your local machine to Labelbox webhooks.
 
 Must have the following env vars set:
   - `LABELBOX_API_KEY` : [Labelbox API Key](https://docs.labelbox.com/en/introduction/faq#how-do-i-create-an-api-key-)
-  - `NGROK_TOKEN` : Enables labelbox webhooks to make requests to deployments without public ip addresses 
+  - `NGROK_TOKEN` : Enables labelbox webhooks to make requests to deployments without public ip addresses
 
 Run `make deploy`
 
@@ -70,14 +72,16 @@ Now we can send predictions to the model. See `scripts/sample_inference.py` for 
 
 ### Label
 
-Predictions are sampled and uploaded to the Labelbox project created for the model. [Go to that project and begin labeling](https://app.labelbox.com/projects). 
+Predictions are sampled and uploaded to the Labelbox project created for the model. [Go to that project and begin labeling](https://app.labelbox.com/projects).
 
 Once an image has been labeled, **giving the label a thumbs up in review mode publish data** to `monitor-svc`.
 
 ### Observe
 
-We use Grafana and InfluxDB for tracking and viewing metrics. If you ran this on your local machine, navigate to 
+We use Grafana and InfluxDB for tracking and viewing metrics. If you ran this on your local machine, navigate to
 http://localhost:3005.
+
+To login use the username and password configured in the docker-compose file. By default the username is `admin` and the password is `pass`.
 
 Navigate to http://localhost:3005/dashboard/import to import our pre-built dashboard. The pre-built dashboard can be
 found under `services/grafana/dashboards/model-monitoring.json`.

@@ -4,11 +4,10 @@ import logging
 import json_logging
 import sys
 
-from resources.settings import conf_file
 from resources.secrets import default_access_key_id, default_access_key
+from labelbox import Client
 
-if os.path.exists(conf_file):
-    pass
+CLIENT = Client()
 
 session = boto3.session.Session()
 s3_client = session.client(
@@ -17,6 +16,7 @@ s3_client = session.client(
     aws_secret_access_key=default_access_key,
     endpoint_url='http://storage:9000',
 )
+
 
 def get_logger(app, name):
     logging.basicConfig()
