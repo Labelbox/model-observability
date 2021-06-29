@@ -2,7 +2,7 @@ FROM python:3.8
 
 RUN pip install tensorflow-serving-api \
                 tensorflow \
-                labelbox \
+                labelbox==2.7b1 \
                 PILLOW \
                 numpy \
                 flask \

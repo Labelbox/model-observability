@@ -831,7 +831,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "datarow_link"
+              "options": "diagnostics_link"
             },
             "properties": [
               {
@@ -893,7 +893,7 @@
           "measurement": "model-stats",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT \"AP\",  \"AR1\", \"review_score\", \"label_id\", \"external_id\", \"image_link\", \"datarow_link\" FROM \"model-stats\" WHERE (\"model_name\" = 'animal-detector') AND $timeFilter",
+          "query": "SELECT \"AP\",  \"AR1\", \"review_score\", \"label_id\", \"external_id\", \"image_link\", \"diagnostics_link\" FROM \"model-stats\" WHERE (\"model_name\" = 'boat-detector') AND $timeFilter",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "table",
@@ -927,7 +927,7 @@
             {
               "key": "model_name",
               "operator": "=",
-              "value": "animal-detector"
+              "value": "boat-detector"
             }
           ]
         }

@@ -3,6 +3,7 @@ tensorflow-serving-api
 PILLOW
 numpy
 matplotlib
+tensorflow-hub
 flask
 labelbox
 boto3
