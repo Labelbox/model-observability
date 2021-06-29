@@ -5,7 +5,9 @@ import requests
 
 images = [
     "https://www.allthingssupplychain.com/wp-content/uploads/2021/05/GettyImages-1266433901-1-1170x779.jpg",
-    "https://media.wired.com/photos/5a035e6f06eea65aaa281ea2/master/w_2560%2Cc_limit/cargoship-TA.jpg"
+    "https://media.wired.com/photos/5a035e6f06eea65aaa281ea2/master/w_2560%2Cc_limit/cargoship-TA.jpg",
+    "https://wallpapercave.com/wp/wp2074610.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/6/60/USSRankin.jpg"
 ]
 
 for idx, url in enumerate(images):
