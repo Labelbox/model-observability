@@ -44,11 +44,11 @@ def store_results(image: np.ndarray, response: Dict[str, Any]) -> None:
     Adds additional information to the inference useful for metrics collection.
     Uploads the inference to labelbox.
     """
-    timestamp = datetime.now().strftime("%d-%m-%Y")
+    timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
     external_id = os.path.join(timestamp, str(uuid4()))
     image_bytes = np_to_jpg_bytes(image)
     ndjson_annotions = mal_upload(image_bytes.getvalue(), external_id,
-                                  response['boxes'], response['scores'],
+                                  response['boxes'],
                                   image.size[1], image.size[0])
     response.update({
         'timestamp': str(timestamp),

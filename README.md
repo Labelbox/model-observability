@@ -46,7 +46,7 @@ Run the following code commands once
 * `make download-model`
   - Downloads a tfhub model
 * `make configure-labelbox`
-  - Create a config file used to parameterize the deployment (see services/monitor-svc/project_conf.json)
+  - Create a config file used to parameterize the deployment (see services/monitor-svc/labelbox_conf.json)
 * `make configure-storage`
   - Creates the local storage directory structure under `./storage`
 

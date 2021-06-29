@@ -10,10 +10,11 @@ from typing import Optional, Dict, Any
 import requests
 from influxdb import InfluxDBClient
 from labelbox import Label, Client, DataRow
+from labelbox.schema.model_run import AnnotationGroup
 from labelbox.data.metrics.iou import datarow_miou
 
 from resources.common import s3_client
-from resources.settings import PROJECT, MODEL_RUN
+from resources.labelbox import PROJECT, MODEL_RUN
 from monitor_svc.monitor.processing import format_annotation, construct_boxes, get_summary
 
 logger = logging.getLogger(__name__)
@@ -66,10 +67,15 @@ def process_review_webhook(payload: Dict[str, Any], lbclient: Client,
     inference = fetch_inference(data_row)
     gt, pred = construct_boxes(inference=inference, annotation=annotation)
     summary = get_summary(pred, gt)
-
-    write_to_influx(influx_client, inference, review, data_row, summary)
     write_to_mea(label, data_row, json_label, inference)
+    annotation_group = find_annotation_group(label)
+    write_to_influx(influx_client, inference, review, data_row, annotation_group, summary)
     return "success"
+
+def find_annotation_group(label: Label) -> Optional[AnnotationGroup]:
+    for annotation_group in MODEL_RUN.annotation_groups():
+        if annotation_group.label_id == label.uid:
+            return annotation_group
 
 
 def fetch_inference(data_row: DataRow) -> Dict[str, Any]:
@@ -96,9 +102,11 @@ def write_to_mea(label: Label, data_row: DataRow, json_label: Dict[str, Any],
                               inference['ndjson_annotions'] + metric)
 
 
+
 def write_to_influx(influx_client: InfluxDBClient, inference: Dict[str, Any],
-                    review: Dict[str, Any], data_row: DataRow,
+                    review: Dict[str, Any], data_row: DataRow, annotation_group: Optional[AnnotationGroup],
                     summary: Dict[str, Any]) -> None:
+
     """ Save the stats to influx db """
     json_body = [{
         "measurement": "model-stats",
@@ -116,8 +124,8 @@ def write_to_influx(influx_client: InfluxDBClient, inference: Dict[str, Any],
                     review["label"]["id"],
                 "external_id":
                     data_row.external_id,
-                "datarow_link":
-                    f"https://app.labelbox.com/dataset/{data_row.dataset().uid}/{data_row.uid}",
+                "diagnostics_link":
+                    annotation_group.url if annotation_group else "",
                 "image_link":
                     data_row.row_data,
             },

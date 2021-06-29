@@ -5,6 +5,9 @@ import json_logging
 import sys
 
 from resources.secrets import default_access_key_id, default_access_key
+from labelbox import Client
+
+CLIENT = Client()
 
 session = boto3.session.Session()
 s3_client = session.client(

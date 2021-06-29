@@ -5,8 +5,9 @@ from influxdb import InfluxDBClient
 
 from resources.common import get_logger
 from resources.settings import (INFLUXDB_HOST, INFLUXDB_PORT, INFLUXDB_USR,
-                                INFLUXDB_PAS, INFLUXDB_NAME, WEBHOOK_HOST,
-                                client)
+                                INFLUXDB_PAS, INFLUXDB_NAME
+)
+from resources.labelbox import WEBHOOK_HOST, CLIENT
 from resources.secrets import secret
 from monitor_svc.monitor.webhook import (process_review_webhook, init_ngrok,
                                          update_public_url)
@@ -34,7 +35,7 @@ def health_check():
 def process_webhook():
     payload = request.data
     verify_webhook(payload)
-    return process_review_webhook(payload, client, influx_client)
+    return process_review_webhook(payload, CLIENT, influx_client)
 
 
 def verify_webhook(payload):
